@@ -225,6 +225,51 @@ class Parser:
         self.eat(EOL)
         return node
 
+class NodeVisitor:
+    """Any type of interpreter must inherit from this base class."""
+    def visit(self, node):
+        """Dispatch the correct visit method for a given node."""
+        method_name = f"visit_{type(node).__name__}"
+        visitor = getattr(self, method_name, self.generic_visit)
+        return visitor(node)
+
+    def generic_visit(self, node):
+        """Triggers an error for visitors that haven't been implemented."""
+        error(f"No visitor for {type(node).__name__}!")
+
+class Interpreter(NodeVisitor):
+    """Interprets the code with the NodeVisitor pattern."""
+
+    def __init__(self, parser):
+        self.parser = parser
+
+    def visit_Num(self, node):
+        """Visit a Num node and return its intrinsic value."""
+        return node.value
+
+    def visit_UnOp(self, node):
+        """Visit a UnOp and apply its operation to its child."""
+
+        value = self.visit(node.child)
+        if node.token.value == NEGATE:
+            return -value
+        error(f"Could not visit UnOp {node}")
+
+    def visit_BinOp(self, node):
+        """Visit a BinOp and apply its operation to its children."""
+
+        right = self.visit(node.right)
+        left = self.visit(node.left)
+        func = OPS.get(node.token.type, None)
+        if func:
+            return func(left, right)
+        error(f"Could not visit BinOp {node}")
+
+    def interpret(self):
+        """Interprets a given piece of code and returns its result."""
+        tree = self.parser.parse()
+        return self.visit(tree)
+
 
 def main():
     """Run a REPL to test the code."""
@@ -232,7 +277,8 @@ def main():
     while inp := input(" >> "):
         lexer = Lexer(inp)
         parser = Parser(lexer)
-        result = parser.parse()
+        interpreter = Interpreter(parser)
+        result = interpreter.interpret()
         print(result)
 
 
