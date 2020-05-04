@@ -251,7 +251,7 @@ class Interpreter(NodeVisitor):
         """Visit a UnOp and apply its operation to its child."""
 
         value = self.visit(node.child)
-        if node.token.value == NEGATE:
+        if node.token.type == NEGATE:
             return -value
         error(f"Could not visit UnOp {node}")
 
