@@ -227,7 +227,9 @@ class Parser:
 
 
 def main():
-    while (inp := input(" >> ")):
+    """Run a REPL to test the code."""
+
+    while inp := input(" >> "):
         lexer = Lexer(inp)
         parser = Parser(lexer)
         result = parser.parse()
