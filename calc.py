@@ -136,12 +136,24 @@ class Lexer:
 class ASTNode(abc.ABC):
     """Base class for all the ASTNode classes."""
 
+class UnOp(ASTNode):
+    """Node for unary operations."""
+    def __init__(self, op, child):
+        self.token = self.op = op
+        self.child = child
+
+    def __str__(self):
+        return f"{self.token} [{self.child}]"
+
 class BinOp(ASTNode):
     """Node for binary operations."""
-    def __init__(self, left, op, right):
-        self.left = left
+    def __init__(self, op, left, right):
         self.token = self.op = op
+        self.left = left
         self.right = right
+
+    def __str__(self):
+        return f"{self.token} [{self.left}   {self.right}]"
 
 class Num(ASTNode):
     """Node for numbers."""
@@ -149,8 +161,11 @@ class Num(ASTNode):
         self.token = token
         self.value = self.token.value
 
-class Interpreter:
-    """An interpreter instance has the job of evaluating code."""
+    def __str__(self):
+        return f"{self.token}"
+
+class Parser:
+    """Parses code into an Abstract Syntax Tree (AST)."""
 
     def __init__(self, lexer):
         # Client string input, e.g. "6×3+5"
@@ -169,46 +184,46 @@ class Interpreter:
     def num(self):
         """Interprets a NUM."""
 
-        result = self.current_token.value
+        node = Num(self.current_token)
         self.eat(INTEGER)
 
         if self.current_token.type == NEGATE:
-            result *= -1
+            node = UnOp(self.current_token, node)
             self.eat(NEGATE)
 
-        return result
+        return node
 
     def term(self):
         """Interprets a TERM."""
 
         if self.current_token.type == RPARENS:
             self.eat(RPARENS)
-            result = self.statement()
+            node = self.statement()
             self.eat(LPARENS)
         else:
-            result = self.num()
+            node = self.num()
 
-        return result
+        return node
 
     def statement(self):
         """Interprets a STATEMENT."""
 
-        result = self.term()
+        node = self.term()
         while self.current_token.type in [PLUS, MINUS, TIMES, DIVISION]:
-            op = self.current_token.type
+            op = self.current_token
             self.eat(self.current_token.type)
-            left_term = self.term()
+            left_node = self.term()
 
-            result = OPS[op](left_term, result)
+            node = BinOp(op, left_node, node)
 
-        return result
+        return node
 
     def interpret(self):
         """Interprets the client string."""
 
-        result = self.statement()
+        node = self.statement()
         self.eat(EOL)
-        return result
+        return node
 
 
 def main():
