@@ -9,6 +9,8 @@ NUM := "¯"? INTEGER
 OP := "+" | "-" | "×" | "÷"
 """
 
+import abc
+
 # Token types
 # EOL (end-of-line) token is used to indicate that there is no more input left.
 INTEGER, NEGATE, EOL = "INTEGER", "NEGATE", "EOL"
@@ -130,6 +132,22 @@ class Lexer:
             return Token(LPARENS, "(")
 
         error("Could not parse an appropriate token.")
+
+class ASTNode(abc.ABC):
+    """Base class for all the ASTNode classes."""
+
+class BinOp(ASTNode):
+    """Node for binary operations."""
+    def __init__(self, left, op, right):
+        self.left = left
+        self.token = self.op = op
+        self.right = right
+
+class Num(ASTNode):
+    """Node for numbers."""
+    def __init__(self, token):
+        self.token = token
+        self.value = self.token.value
 
 class Interpreter:
     """An interpreter instance has the job of evaluating code."""
