@@ -174,7 +174,7 @@ class Parser:
         self.current_token = self.lexer.get_next_token()
 
     def eat(self, token_type):
-        """Compare the current token with th⌈e expected token type."""
+        """Compare the current token with the expected token type."""
 
         if self.current_token.type == token_type:
             self.current_token = self.lexer.get_next_token()
@@ -182,7 +182,7 @@ class Parser:
             error(f"Expected type {token_type} and got {self.current_token}")
 
     def num(self):
-        """Interprets a NUM."""
+        """Parses a NUM."""
 
         node = Num(self.current_token)
         self.eat(INTEGER)
@@ -194,7 +194,7 @@ class Parser:
         return node
 
     def term(self):
-        """Interprets a TERM."""
+        """Parses a TERM."""
 
         if self.current_token.type == RPARENS:
             self.eat(RPARENS)
@@ -206,7 +206,7 @@ class Parser:
         return node
 
     def statement(self):
-        """Interprets a STATEMENT."""
+        """Parses a STATEMENT."""
 
         node = self.term()
         while self.current_token.type in [PLUS, MINUS, TIMES, DIVISION]:
@@ -218,8 +218,8 @@ class Parser:
 
         return node
 
-    def interpret(self):
-        """Interprets the client string."""
+    def parse(self):
+        """Parses the client string."""
 
         node = self.statement()
         self.eat(EOL)
@@ -229,8 +229,8 @@ class Parser:
 def main():
     while (inp := input(" >> ")):
         lexer = Lexer(inp)
-        interpreter = Interpreter(lexer)
-        result = interpreter.interpret()
+        parse = Parser(lexer)
+        result = parser.parse()
         print(result)
 
 
