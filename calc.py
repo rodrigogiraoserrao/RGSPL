@@ -1,5 +1,15 @@
+"""
+Implement a basic calculator with APL-like syntax.
+
+This simple calculator only implements the operators +-×÷ and ¯ on simple integer scalars.
+This is the grammar accepted, where rules match from right to left.
+STATEMENT := EOL (TERM OP)* TERM
+TERM := NUM | "(" STATEMENT ")"
+NUM := "¯"? INTEGER
+OP := "+" | "-" | "×" | "÷"
+"""
+
 # Token types
-#
 # EOL (end-of-line) token is used to indicate that there is no more input left.
 INTEGER, NEGATE, EOL = "INTEGER", "NEGATE", "EOL"
 LPARENS, RPARENS = "LPARENS", "RPARENS"
@@ -11,15 +21,13 @@ OPS = {
     DIVISION: lambda l, r: l/r,
 }
 
-# We accept the following grammar with the rules matching from right to left:
-#
-# STATEMENT := EOL (TERM OP)* TERM
-# TERM := NUM | LPARENS STATEMENT RPARENS
-# NUM := NEGATE? INTEGER
-# OP := PLUS | MINUS | TIMES | DIVISION
-
+def error(msg="Error with RGSPL."):
+    """Raise an exception from the RGSPL inner workings."""
+    raise Exception(msg)
 
 class Token:
+    """Token class for our interpreter."""
+
     def __init__(self, type_, value):
         # Token type, e.g. INTEGER or LPARENS
         self.type = type_
@@ -40,7 +48,7 @@ class Token:
 
 
 class Lexer:
-    """Takes a line of code and breaks it into tokens."""
+    """A lexer instance has the job of breaking down code into tokens."""
 
     OP_CHARS = "+-÷×¯"
 
@@ -50,10 +58,6 @@ class Lexer:
         self.pos = len(self.text) - 1
         self.current_char = self.text[self.pos]
         self.current_token = None
-
-    def error(self, msg="Error in lexer!"):
-        """Raises an error."""
-        raise Exception(msg)
 
     def advance(self):
         """Advance internal pointer and get the next character."""
@@ -98,7 +102,7 @@ class Lexer:
             self.advance()
             return tok
         else:
-            return self.error("Could not parse operator token.")
+            return error("Could not parse operator token.")
 
     def get_next_token(self):
         """Lexical analyzer (aka scanner or tokenizer)
@@ -125,18 +129,16 @@ class Lexer:
             self.advance()
             return Token(LPARENS, "(")
 
-        self.error("Could not parse an appropriate token.")
+        error("Could not parse an appropriate token.")
 
 class Interpreter:
+    """An interpreter instance has the job of evaluating code."""
+
     def __init__(self, lexer):
         # Client string input, e.g. "6×3+5"
         self.lexer = lexer
         # Current token instance
         self.current_token = self.lexer.get_next_token()
-
-    def error(self, msg="Error parsing input."):
-        """Raises an interpreter error with a custom message."""
-        raise Exception(msg)
 
     def eat(self, token_type):
         """Compare the current token with th⌈e expected token type."""
@@ -144,7 +146,7 @@ class Interpreter:
         if self.current_token.type == token_type:
             self.current_token = self.lexer.get_next_token()
         else:
-            self.error(f"Expected type {token_type} and got {self.current_token}")
+            error(f"Expected type {token_type} and got {self.current_token}")
 
     def num(self):
         """Interprets a NUM."""
