@@ -1,7 +1,7 @@
 # Token types
 #
-# EOF (end-of-file) token is used to indicate that there is no more input left.
-INTEGER, NEGATE, EOF = "INTEGER", "NEGATE", "EOF"
+# EOL (end-of-line) token is used to indicate that there is no more input left.
+INTEGER, NEGATE, EOL = "INTEGER", "NEGATE", "EOL"
 LPARENS, RPARENS = "LPARENS", "RPARENS"
 PLUS, MINUS, TIMES, DIVISION = "PLUS", "MINUS", "TIMES", "DIVISION"
 OPS = {
@@ -13,7 +13,7 @@ OPS = {
 
 # We accept the following grammar with the rules matching from right to left:
 #
-# STATEMENT := EOF (TERM OP)* TERM
+# STATEMENT := EOL (TERM OP)* TERM
 # TERM := NUM | LPARENS STATEMENT RPARENS
 # NUM := NEGATE? INTEGER
 # OP := PLUS | MINUS | TIMES | DIVISION
@@ -109,7 +109,7 @@ class Lexer:
         self.skip_whitespace()
         # Check if we already parsed everything.
         if not self.current_char:
-            return Token(EOF, None)
+            return Token(EOL, None)
 
         # Check what type of token we have now.
         if self.current_char.isdigit():
@@ -187,7 +187,7 @@ class Interpreter:
         """Interprets the client string."""
 
         result = self.statement()
-        self.eat(EOF)
+        self.eat(EOL)
         return result
 
 
