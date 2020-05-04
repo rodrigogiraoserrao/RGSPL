@@ -229,7 +229,7 @@ class Parser:
 def main():
     while (inp := input(" >> ")):
         lexer = Lexer(inp)
-        parse = Parser(lexer)
+        parser = Parser(lexer)
         result = parser.parse()
         print(result)
 
