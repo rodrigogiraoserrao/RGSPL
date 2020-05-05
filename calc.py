@@ -136,7 +136,7 @@ class Lexer:
 class ASTNode(abc.ABC):
     """Base class for all the ASTNode classes."""
 
-class UnOp(ASTNode):
+class UnFunc(ASTNode):
     """Node for unary operations."""
     def __init__(self, op, child):
         self.token = self.op = op
@@ -145,7 +145,7 @@ class UnOp(ASTNode):
     def __str__(self):
         return f"{self.token} [{self.child}]"
 
-class BinOp(ASTNode):
+class BinFunc(ASTNode):
     """Node for binary operations."""
     def __init__(self, op, left, right):
         self.token = self.op = op
@@ -188,7 +188,7 @@ class Parser:
         self.eat(INTEGER)
 
         if self.current_token.type == NEGATE:
-            node = UnOp(self.current_token, node)
+            node = UnFunc(self.current_token, node)
             self.eat(NEGATE)
 
         return node
@@ -214,7 +214,7 @@ class Parser:
             self.eat(self.current_token.type)
             left_node = self.term()
 
-            node = BinOp(op, left_node, node)
+            node = BinFunc(op, left_node, node)
 
         return node
 
@@ -247,23 +247,23 @@ class Interpreter(NodeVisitor):
         """Visit a Num node and return its intrinsic value."""
         return node.value
 
-    def visit_UnOp(self, node):
-        """Visit a UnOp and apply its operation to its child."""
+    def visit_UnFunc(self, node):
+        """Visit a UnFunc and apply its operation to its child."""
 
         value = self.visit(node.child)
         if node.token.type == NEGATE:
             return -value
-        error(f"Could not visit UnOp {node}")
+        error(f"Could not visit UnFunc {node}")
 
-    def visit_BinOp(self, node):
-        """Visit a BinOp and apply its operation to its children."""
+    def visit_BinFunc(self, node):
+        """Visit a BinFunc and apply its operation to its children."""
 
         right = self.visit(node.right)
         left = self.visit(node.left)
         func = OPS.get(node.token.type, None)
         if func:
             return func(left, right)
-        error(f"Could not visit BinOp {node}")
+        error(f"Could not visit BinFunc {node}")
 
     def interpret(self):
         """Interprets a given piece of code and returns its result."""
