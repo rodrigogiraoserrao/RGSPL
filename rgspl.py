@@ -126,7 +126,7 @@ class Tokenizer:
             return self.get_number_token()
 
         if self.current_char in Token.WYSIWYG:
-            return self.get_wysiwyg_token()        
+            return self.get_wysiwyg_token()
 
         self.error("Could not parse the next token...")
 
