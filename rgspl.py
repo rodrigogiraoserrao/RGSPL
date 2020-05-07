@@ -1,9 +1,18 @@
 """
 Implement a subset of the APL programming language.
 
-We support the following monadic/dyadic functions +-×÷
-We support (negative) integers/floats
-We support the following monadic operators ⍨
+Supports the monadic/dyadic functions +-×÷ ;
+Supports (negative) integers/floats and vectors of those ;
+Supports the monadic operator ⍨ ;
+Supports parenthesized expressions ;
+
+Parses the following grammar, read from right to left:
+
+STATEMENT := STATEMENT* FUNCTION ARRAY
+ARRAY := ARRAY* ( "(" STATEMENT ")" | NUMBER )
+NUMBER := "¯"? ( INTEGER | FLOAT )
+FUNCTION := F "⍨"?
+F := "+" | "-" | "×" | "÷"
 """
 
 
