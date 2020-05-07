@@ -6,13 +6,12 @@ Supports (negative) integers/floats and vectors of those ;
 Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
-Parses the following grammar, read from right to left:
-
-STATEMENT := STATEMENT* FUNCTION ARRAY
-ARRAY := ARRAY* ( "(" STATEMENT ")" | NUMBER )
-NUMBER := "¯"? ( INTEGER | FLOAT )
-FUNCTION := F "⍨"?
-F := "+" | "-" | "×" | "÷"
+Read from right to left, this is the grammar supported:
+    STATEMENT := STATEMENT* FUNCTION ARRAY
+    ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
+    SCALAR := "¯"? ( INTEGER | FLOAT )
+    FUNCTION := F "⍨"?
+    F := "+" | "-" | "×" | "÷"
 """
 
 
@@ -43,6 +42,7 @@ class Token:
 
     def __repr__(self):
         return self.__str__()
+
 
 class Tokenizer:
     """Class that tokenizes source code into tokens."""
@@ -138,6 +138,105 @@ class Tokenizer:
             tokens.append(self.get_next_token())
         return tokens[::-1]
 
+
+class ASTNode:
+    pass
+
+
+class Scalar(ASTNode):
+    """Node for a simple scalar like 3 or ¯4.2"""
+    def __init__(self, token):
+        self.token = token
+        self.value = self.token.value
+
+    def __str__(self):
+        return f"S({self.value})"
+
+
+class Array(ASTNode):
+    """Node for an array of simple scalars, like 3 ¯4 5.6"""
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.values = [token.value for token in self.tokens]
+
+    def __str__(self):
+        return f"A({self.values})"
+
+
+class MOp(ASTNode):
+    """Node for monadic operators like ⍨"""
+    def __init__(self, token, child):
+        self.token = token
+        self.child = child
+
+    def __str__(self):
+        return f"MOp({self.token.value} {self.child})"
+
+
+class Monad(ASTNode):
+    """Node for monadic functions."""
+    def __init__(self, token, child):
+        self.token = token
+        self.child = child
+
+    def __str__(self):
+        return f"Monad({self.token.value} {self.child})"
+
+
+class Dyad(ASTNode):
+    """Node for dyadic functions."""
+    def __init__(self, token, left, right):
+        self.token = token
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return f"Dyad({self.token.value} {self.left} {self.right})"
+
+
+class Parser:
+    """Implements a parser for a subset of the APL language.
+
+    The grammar parsed is available at the module-level docstring.
+    """
+
+    def __init__(self, tokenizer):
+        self.tokens = tokenizer.tokenize()
+        self.pos = len(self.tokens) - 1
+        self.token_at = self.tokens[self.pos]
+
+    def error(self, message):
+        """Throws a Parser-specific error message."""
+        raise Exception(f"Parser: {message}")
+
+    def eat(self, token_type):
+        """Checks if the current token matches the expected token type."""
+
+        if self.token_at.type != token_type:
+            self.error(f"Expected {token_type} and got {self.token_at.type}.")
+        else:
+            self.pos -= 1
+            self.token_at = None if self.pos < 0 else self.tokens[self.pos]
+
+    def peek(self):
+        """Returns the next token type without consuming it."""
+        peek_at = self.pos - 1
+        return None if peek_at < 0 else self.tokens[peek_at].type
+
+    def parse_statement(self):
+        pass
+
+    def parse_array(self):
+        pass
+
+    def parse_scalar(self):
+        pass
+
+    def parse_function(self):
+        pass
+
+    def parse_f(self):
+        pass
 
 if __name__ == "__main__":
     while inp := input(" >> "):
