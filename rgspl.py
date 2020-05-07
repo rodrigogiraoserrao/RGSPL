@@ -19,7 +19,8 @@ F := "+" | "-" | "×" | "÷"
 class Token:
     """Represents a token parsed from the source code."""
 
-    FUNCTIONS = "+-×÷"
+    # What You See Is What You Get tokens
+    WYSIWYG = "+-×÷()⍨"
 
     INTEGER = "INTEGER"
     FLOAT = "FLOAT"
@@ -29,6 +30,8 @@ class Token:
     DIVIDE = "DIVIDE"
     NEGATE = "NEGATE"
     COMMUTE = "COMMUTE"
+    LPARENS = "LPARENS"
+    RPARENS = "RPARENS"
     EOF = "EOF"
 
     def __init__(self, type_, value):
@@ -93,21 +96,24 @@ class Tokenizer:
         else:
             return Token(Token.INTEGER, int(num))
 
-    def get_function_token(self):
-        """Retrieves a function token."""
+    def get_wysiwyg_token(self):
+        """Retrieves a WYSIWYG token."""
 
         mapping = {
             "+": Token.PLUS,
             "-": Token.MINUS,
             "×": Token.TIMES,
             "÷": Token.DIVIDE,
+            "(": Token.LPARENS,
+            ")": Token.RPARENS,
+            "⍨": Token.COMMUTE,
         }
         char = self.current_char
         if char in mapping:
             self.advance()
             return Token(mapping[char], char)
 
-        self.error("Could not parse function token.")
+        self.error("Could not parse WYSIWYG token.")
 
     def get_next_token(self):
         """Finds the next token in the source code."""
@@ -119,12 +125,8 @@ class Tokenizer:
         if self.current_char in "0123456789":
             return self.get_number_token()
 
-        if self.current_char in "+-×÷":
-            return self.get_function_token()
-
-        if self.current_char == "⍨":
-            self.advance()
-            return Token(Token.COMMUTE, "⍨")
+        if self.current_char in Token.WYSIWYG:
+            return self.get_wysiwyg_token()        
 
         self.error("Could not parse the next token...")
 
