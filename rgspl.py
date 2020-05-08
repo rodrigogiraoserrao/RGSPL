@@ -7,7 +7,7 @@ Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported:
-    STATEMENT := ( ARRAY FUNCTION | FUNCTION )* ARRAY
+    STATEMENT := EOF ( ARRAY FUNCTION | FUNCTION )* ARRAY
     ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
     SCALAR := INTEGER | FLOAT
     FUNCTION := F | FUNCTION "⍨"
