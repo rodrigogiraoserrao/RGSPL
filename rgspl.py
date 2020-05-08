@@ -7,8 +7,7 @@ Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported:
-    STATEMENT := EXPRESSION ARRAY
-    EXPRESSION := EXPRESSION* ( ARRAY FUNCTION | FUNCTION )
+    STATEMENT := ( ARRAY FUNCTION | FUNCTION )* ARRAY
     ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
     SCALAR := INTEGER | FLOAT
     FUNCTION := F | FUNCTION "⍨"
@@ -231,22 +230,17 @@ class Parser:
     def parse_statement(self):
         """Parses a statement."""
 
-        array = self.parse_array()
-        expr, base = self.parse_expression()
-        # Now we have to put the array node into the right slot of the expression.
-        return None
-
-    def parse_expression(self):
-        """Parses a function expression."""
-
-        func, base = self.parse_function()
-        if isinstance(base, Dyad):
-            array = self.parse_array()
-            base.left = array
-        elif isinstance(base, Monad):
-            base = func
-
-        return None
+        node = self.parse_array()
+        while self.token_at.type != Token.EOF:
+            func = self.parse_function()
+            if isinstance(func, Dyad):
+                func.right = node
+                func.left = self.parse_array()
+            else:
+                func.child = node
+            node = func
+        self.eat(Token.EOF)
+        return node
 
     def parse_array(self):
         """Parses an array composed of possibly several simple scalars."""
@@ -278,14 +272,13 @@ class Parser:
     def parse_function(self):
         """Parses a function possibly operated upon."""
 
-        base = None
         if self.token_at.type == Token.COMMUTE:
             node = MOp(self.token_at, None)
             self.eat(Token.COMMUTE)
-            base = node.child = self.parse_f()
+            node.child = self.parse_function()
         else:
             node = self.parse_f()
-        return node, base
+        return node
 
     def parse_f(self):
         """Parses a simple one-character function.
