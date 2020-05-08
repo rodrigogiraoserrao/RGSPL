@@ -7,10 +7,11 @@ Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported:
-    STATEMENT := STATEMENT* FUNCTION ARRAY
+    STATEMENT := EXPRESSION ARRAY
+    EXPRESSION := EXPRESSION* ( ARRAY FUNCTION | FUNCTION )
     ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
-    SCALAR := "¯"? ( INTEGER | FLOAT )
-    FUNCTION := F "⍨"?
+    SCALAR := INTEGER | FLOAT
+    FUNCTION := F | FUNCTION "⍨"
     F := "+" | "-" | "×" | "÷"
 """
 
@@ -140,7 +141,12 @@ class Tokenizer:
 
 
 class ASTNode:
-    pass
+    """Stub class to be inherited by the different types of AST nodes.
+
+    The AST Nodes are used by the Parser instances to build an
+        Abstract Syntax Tree out of the APL programs.
+    These ASTs can then be traversed to interpret an APL program.
+    """
 
 
 class Scalar(ASTNode):
@@ -155,12 +161,11 @@ class Scalar(ASTNode):
 
 class Array(ASTNode):
     """Node for an array of simple scalars, like 3 ¯4 5.6"""
-    def __init__(self, tokens):
-        self.tokens = tokens
-        self.values = [token.value for token in self.tokens]
+    def __init__(self, children):
+        self.children = children
 
     def __str__(self):
-        return f"A({self.values})"
+        return f"A({self.children})"
 
 
 class MOp(ASTNode):
@@ -224,19 +229,76 @@ class Parser:
         return None if peek_at < 0 else self.tokens[peek_at].type
 
     def parse_statement(self):
-        pass
+        """Parses a statement."""
+
+        array = self.parse_array()
+        expr, base = self.parse_expression()
+        # Now we have to put the array node into the right slot of the expression.
+        return None
+
+    def parse_expression(self):
+        """Parses a function expression."""
+
+        func, base = self.parse_function()
+        if isinstance(base, Dyad):
+            array = self.parse_array()
+            base.left = array
+        elif isinstance(base, Monad):
+            base = func
+
+        return None
 
     def parse_array(self):
-        pass
+        """Parses an array composed of possibly several simple scalars."""
+
+        nodes = [self.parse_scalar()]
+        while self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
+            if self.token_at.type == Token.RPARENS:
+                nodes.append(self.parse_statement())
+            else:
+                nodes.append(self.parse_scalar())
+        nodes = nodes[::-1]
+        if len(nodes) == 1:
+            node = nodes[0]
+        else:
+            node = Array(nodes)
+        return node
 
     def parse_scalar(self):
-        pass
+        """Parses a simple scalar."""
+
+        if self.token_at.type == Token.INTEGER:
+            node = Scalar(self.token_at)
+            self.eat(Token.INTEGER)
+        else:
+            node = Scalar(self.token_at)
+            self.eat(Token.FLOAT)
+        return node
 
     def parse_function(self):
-        pass
+        """Parses a function possibly operated upon."""
+
+        base = None
+        if self.token_at.type == Token.COMMUTE:
+            node = MOp(self.token_at, None)
+            self.eat(Token.COMMUTE)
+            base = node.child = self.parse_f()
+        else:
+            node = self.parse_f()
+        return node, base
 
     def parse_f(self):
-        pass
+        """Parses a simple one-character function.
+
+        We have to peek forward to decide if the function is monadic or dyadic.
+        """
+
+        if self.peek in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
+            node = Dyad(self.token_at, None, None)
+        else:
+            node = Monad(self.token_at, None)
+        self.eat(node.token.type)
+        return node
 
 if __name__ == "__main__":
     while inp := input(" >> "):
