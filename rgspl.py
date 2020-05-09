@@ -19,9 +19,6 @@ Read from right to left, this is the grammar supported:
 class Token:
     """Represents a token parsed from the source code."""
 
-    # What You See Is What You Get tokens
-    WYSIWYG = "+-×÷()⍨"
-
     INTEGER = "INTEGER"
     FLOAT = "FLOAT"
     PLUS = "PLUS"
@@ -33,6 +30,23 @@ class Token:
     LPARENS = "LPARENS"
     RPARENS = "RPARENS"
     EOF = "EOF"
+
+    # Helpful lists of token types.
+    FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE]
+    MONADIC_OPS = [COMMUTE]
+
+    # What You See Is What You Get characters that correspond to tokens.
+    WYSIWYG = "+-×÷()⍨"
+    # The mapping from characteres to token types.
+    mapping = {
+        "+": PLUS,
+        "-": MINUS,
+        "×": TIMES,
+        "÷": DIVIDE,
+        "(": LPARENS,
+        ")": RPARENS,
+        "⍨": COMMUTE,
+    }
 
     def __init__(self, type_, value):
         self.type = type_
@@ -100,15 +114,6 @@ class Tokenizer:
     def get_wysiwyg_token(self):
         """Retrieves a WYSIWYG token."""
 
-        mapping = {
-            "+": Token.PLUS,
-            "-": Token.MINUS,
-            "×": Token.TIMES,
-            "÷": Token.DIVIDE,
-            "(": Token.LPARENS,
-            ")": Token.RPARENS,
-            "⍨": Token.COMMUTE,
-        }
         char = self.current_char
         if char in mapping:
             self.advance()
@@ -262,13 +267,15 @@ class Parser:
 
         self.debug(f"Parsing statement from {self.tokens[:self.pos+1]}")
         node = self.parse_array()
-        while self.token_at.type in [Token.PLUS, Token.MINUS, Token.TIMES, Token.DIVIDE, Token.COMMUTE]:
+        while self.token_at.type in (Token.FUNCTIONS + Token.MONADIC_OPS):
             func, base = self.parse_function()
             if isinstance(base, Dyad):
                 base.right = node
                 base.left = self.parse_array()
-            else:
+            elif isinstance(base, Monad):
                 base.child = node
+            else:
+                self.error(f"Got {type(base)} instead of a Monad/Dyad.")
             node = func
 
         return node
@@ -307,12 +314,12 @@ class Parser:
         return node
 
     def parse_function(self):
-        """Parses a function possibly operated upon."""
+        """Parses a function possibly monadically operated upon."""
 
         self.debug(f"Parsing function from {self.tokens[:self.pos+1]}")
-        if self.token_at.type == Token.COMMUTE:
+        if self.token_at.type in Token.MONADIC_OPS:
             node = MOp(self.token_at, None)
-            self.eat(Token.COMMUTE)
+            self.eat(self.token_at.type)
             node.child, base = self.parse_function()
         else:
             base = node = self.parse_f()
