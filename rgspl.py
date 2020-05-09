@@ -7,7 +7,8 @@ Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported:
-    STATEMENT := EOF ( ARRAY FUNCTION | FUNCTION )* ARRAY
+    PROGRAM := EOF STATEMENT
+    STATEMENT := ( ARRAY FUNCTION | FUNCTION )* ARRAY
     ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
     SCALAR := INTEGER | FLOAT
     FUNCTION := F | FUNCTION "⍨"
@@ -157,6 +158,9 @@ class Scalar(ASTNode):
     def __str__(self):
         return f"S({self.value})"
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class Array(ASTNode):
     """Node for an array of simple scalars, like 3 ¯4 5.6"""
@@ -165,6 +169,9 @@ class Array(ASTNode):
 
     def __str__(self):
         return f"A({self.children})"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class MOp(ASTNode):
@@ -176,6 +183,9 @@ class MOp(ASTNode):
     def __str__(self):
         return f"MOp({self.token.value} {self.child})"
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class Monad(ASTNode):
     """Node for monadic functions."""
@@ -185,6 +195,9 @@ class Monad(ASTNode):
 
     def __str__(self):
         return f"Monad({self.token.value} {self.child})"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Dyad(ASTNode):
@@ -197,6 +210,9 @@ class Dyad(ASTNode):
     def __str__(self):
         return f"Dyad({self.token.value} {self.left} {self.right})"
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class Parser:
     """Implements a parser for a subset of the APL language.
@@ -204,10 +220,16 @@ class Parser:
     The grammar parsed is available at the module-level docstring.
     """
 
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, debug=False):
         self.tokens = tokenizer.tokenize()
         self.pos = len(self.tokens) - 1
         self.token_at = self.tokens[self.pos]
+        self.debug_on = debug
+
+    def debug(self, message):
+        """If the debugging option is on, print a message."""
+        if self.debug_on:
+            print(f"PD @ {message}")
 
     def error(self, message):
         """Throws a Parser-specific error message."""
@@ -227,32 +249,46 @@ class Parser:
         peek_at = self.pos - 1
         return None if peek_at < 0 else self.tokens[peek_at].type
 
+    def parse_program(self):
+        """Parses a full program."""
+
+        self.debug(f"Parsing program from {self.tokens}")
+        node = self.parse_statement()
+        self.eat(Token.EOF)
+        return node
+
     def parse_statement(self):
         """Parses a statement."""
 
+        self.debug(f"Parsing statement from {self.tokens[:self.pos+1]}")
         node = self.parse_array()
-        while self.token_at.type != Token.EOF:
-            func = self.parse_function()
-            if isinstance(func, Dyad):
-                func.right = node
-                func.left = self.parse_array()
+        while self.token_at.type in [Token.PLUS, Token.MINUS, Token.TIMES, Token.DIVIDE, Token.COMMUTE]:
+            func, base = self.parse_function()
+            if isinstance(base, Dyad):
+                base.right = node
+                base.left = self.parse_array()
             else:
-                func.child = node
+                base.child = node
             node = func
-        self.eat(Token.EOF)
+
         return node
 
     def parse_array(self):
         """Parses an array composed of possibly several simple scalars."""
 
-        nodes = [self.parse_scalar()]
+        self.debug(f"Parsing array from {self.tokens[:self.pos+1]}")
+        nodes = []
         while self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
             if self.token_at.type == Token.RPARENS:
+                self.eat(Token.RPARENS)
                 nodes.append(self.parse_statement())
+                self.eat(Token.LPARENS)
             else:
                 nodes.append(self.parse_scalar())
         nodes = nodes[::-1]
-        if len(nodes) == 1:
+        if not nodes:
+            self.error("Failed to parse scalars inside an array.")
+        elif len(nodes) == 1:
             node = nodes[0]
         else:
             node = Array(nodes)
@@ -261,6 +297,7 @@ class Parser:
     def parse_scalar(self):
         """Parses a simple scalar."""
 
+        self.debug(f"Parsing scalar from {self.tokens[:self.pos+1]}")
         if self.token_at.type == Token.INTEGER:
             node = Scalar(self.token_at)
             self.eat(Token.INTEGER)
@@ -272,13 +309,14 @@ class Parser:
     def parse_function(self):
         """Parses a function possibly operated upon."""
 
+        self.debug(f"Parsing function from {self.tokens[:self.pos+1]}")
         if self.token_at.type == Token.COMMUTE:
             node = MOp(self.token_at, None)
             self.eat(Token.COMMUTE)
-            node.child = self.parse_function()
+            node.child, base = self.parse_function()
         else:
-            node = self.parse_f()
-        return node
+            base = node = self.parse_f()
+        return node, base
 
     def parse_f(self):
         """Parses a simple one-character function.
@@ -286,13 +324,18 @@ class Parser:
         We have to peek forward to decide if the function is monadic or dyadic.
         """
 
-        if self.peek in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
+        self.debug(f"Parsing f from {self.tokens[:self.pos+1]}")
+        if self.peek() in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
             node = Dyad(self.token_at, None, None)
         else:
             node = Monad(self.token_at, None)
         self.eat(node.token.type)
         return node
 
+    def parse(self):
+        """Parses the whole AST."""
+        return self.parse_program()
+
 if __name__ == "__main__":
     while inp := input(" >> "):
-        print(Tokenizer(inp).tokenize())
+        print(Parser(Tokenizer(inp), debug=True).parse())
