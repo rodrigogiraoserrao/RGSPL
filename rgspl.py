@@ -115,9 +115,9 @@ class Tokenizer:
         """Retrieves a WYSIWYG token."""
 
         char = self.current_char
-        if char in mapping:
+        if char in Token.mapping:
             self.advance()
-            return Token(mapping[char], char)
+            return Token(Token.mapping[char], char)
 
         self.error("Could not parse WYSIWYG token.")
 
@@ -267,7 +267,8 @@ class Parser:
 
         self.debug(f"Parsing statement from {self.tokens[:self.pos+1]}")
         node = self.parse_array()
-        while self.token_at.type in (Token.FUNCTIONS + Token.MONADIC_OPS):
+        while self.token_at.type in Token.FUNCTIONS + Token.MONADIC_OPS:
+            # pylint: disable=attribute-defined-outside-init
             func, base = self.parse_function()
             if isinstance(base, Dyad):
                 base.right = node
@@ -277,7 +278,6 @@ class Parser:
             else:
                 self.error(f"Got {type(base)} instead of a Monad/Dyad.")
             node = func
-
         return node
 
     def parse_array(self):
