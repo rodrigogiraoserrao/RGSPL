@@ -344,5 +344,11 @@ class Parser:
         return self.parse_program()
 
 if __name__ == "__main__":
+
+    print("Welcome!")
+    print("Type in an APL expression with integers, floats (and vectors of those)")
+    print("  and making use of ¯+-×÷⍨ and see it get tokenized and parsed into an AST.")
     while inp := input(" >> "):
-        print(Parser(Tokenizer(inp), debug=True).parse())
+        p = Parser(Tokenizer(inp))
+        print(p.tokens)
+        print(p.parse())
