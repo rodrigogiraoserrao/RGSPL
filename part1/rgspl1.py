@@ -9,7 +9,7 @@ Supports parenthesized expressions ;
 Read from right to left, this is the grammar supported:
     PROGRAM := EOF STATEMENT
     STATEMENT := ( ARRAY FUNCTION | FUNCTION )* ARRAY
-    ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
+    ARRAY := ( "(" STATEMENT ")" | SCALAR )+
     SCALAR := INTEGER | FLOAT
     FUNCTION := F | FUNCTION "⍨"
     F := "+" | "-" | "×" | "÷"
