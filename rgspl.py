@@ -9,14 +9,11 @@ Supports parenthesized expressions ;
 Read from right to left, this is the grammar supported:
 
     program := EOF statemnt
-    statement := (assignment | dyad | monad)* array
-    monad := function
-    dyad := array function
-    assignment := ID "←"
+    statement := ( ID "←" | array function | function )* array
     function := f | function mop
     mop := "⍨"
     f := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
-    array := ( "(" statement ")" | scalar )+
+    array := scalar | ( "(" statement ")" | scalar )+
     scalar := INTEGER | FLOAT
 """
 # pylint: disable=invalid-name
@@ -230,7 +227,7 @@ class F(ASTNode):
 
 class Monad(ASTNode):
     """Node for monadic function calls."""
-    def __init__(self, function: Token, omega: ASTNode):
+    def __init__(self, function: ASTNode, omega: ASTNode):
         self.function = function
         self.omega = omega
 
@@ -240,13 +237,23 @@ class Monad(ASTNode):
 
 class Dyad(ASTNode):
     """Node for dyadic functions."""
-    def __init__(self, function: Token, alpha: ASTNode, omega: ASTNode):
+    def __init__(self, function: ASTNode, alpha: ASTNode, omega: ASTNode):
         self.function = function
         self.alpha = alpha
         self.omega = omega
 
     def __str__(self):
-        return f"Dyad({self.function.value} {self.alpha} {self.omega})"
+        return f"Dyad({self.function} {self.alpha} {self.omega})"
+
+
+class Assignment(ASTNode):
+    """Node for assignment expressions."""
+    def __init__(self, varname: Token, value: ASTNode):
+        self.varname = varname
+        self.value = value
+
+    def __str__(self):
+        return f"{self.varname.value} ← {self.value}"
 
 
 class Parser:
@@ -288,27 +295,32 @@ class Parser:
         """Parses a full program."""
 
         self.debug(f"Parsing program from {self.tokens}")
-        node = self.parse_statement()
+        statement = self.parse_statement()
         self.eat(Token.EOF)
-        return node
+        return statement
 
     def parse_statement(self):
         """Parses a statement."""
 
         self.debug(f"Parsing statement from {self.tokens[:self.pos+1]}")
-        node = self.parse_array()
-        while self.token_at.type in Token.FUNCTIONS + Token.MONADIC_OPS:
+
+        relevant_types = [Token.ASSIGNMENT] + Token.FUNCTIONS + Token.MONADIC_OPS
+        statement = self.parse_array()
+        while self.token_at.type in relevant_types:
             # pylint: disable=attribute-defined-outside-init
-            func, base = self.parse_function()
-            if isinstance(base, Dyad):
-                base.right = node
-                base.left = self.parse_array()
-            elif isinstance(base, Monad):
-                base.child = node
+            if self.token_at.type == Token.ASSIGNMENT:
+                self.eat(Token.ASSIGNMENT)
+                statement = Assignment(self.token_at, statement)
+                self.eat(Token.ID)
             else:
-                self.error(f"Got {type(base)} instead of a Monad/Dyad.")
-            node = func
-        return node
+                function = self.parse_function()
+                if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
+                    array = self.parse_array()
+                    statement = Dyad(function, array, statement)
+                else:
+                    statement = Monad(function, statement)
+
+        return statement
 
     def parse_array(self):
         """Parses an array composed of possibly several simple scalars."""
@@ -328,46 +340,58 @@ class Parser:
         elif len(nodes) == 1:
             node = nodes[0]
         else:
-            node = Array(nodes)
+            node = A(nodes)
         return node
 
     def parse_scalar(self):
         """Parses a simple scalar."""
 
         self.debug(f"Parsing scalar from {self.tokens[:self.pos+1]}")
+
         if self.token_at.type == Token.INTEGER:
             node = S(self.token_at)
             self.eat(Token.INTEGER)
         else:
             node = S(self.token_at)
             self.eat(Token.FLOAT)
+
         return node
 
     def parse_function(self):
         """Parses a function possibly monadically operated upon."""
 
         self.debug(f"Parsing function from {self.tokens[:self.pos+1]}")
+
         if self.token_at.type in Token.MONADIC_OPS:
-            node = MOp(self.token_at, None)
-            self.eat(self.token_at.type)
-            node.child, base = self.parse_function()
+            function = self.parse_mop()
+            function.child = self.parse_function()
         else:
-            base = node = self.parse_f()
-        return node, base
+            function = self.parse_f()
+        return function
+
+    def parse_mop(self):
+        """Parses a monadic operator."""
+
+        self.debug(f"Parsing a mop from {self.tokens[:self.pos+1]}")
+
+        mop = MOp(self.token_at, None)
+        if (t := self.token_at.type) not in Token.MONADIC_OPS:
+            self.error(f"{t} is not a valid monadic operator.")
+        self.eat(t)
+
+        return mop
 
     def parse_f(self):
-        """Parses a simple one-character function.
-
-        We have to peek forward to decide if the function is monadic or dyadic.
-        """
+        """Parses a simple one-character function."""
 
         self.debug(f"Parsing f from {self.tokens[:self.pos+1]}")
-        if self.peek() in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
-            node = Dyad(self.token_at, None, None)
-        else:
-            node = Monad(self.token_at, None)
-        self.eat(node.token.type)
-        return node
+
+        f = F(self.token_at)
+        if (t := self.token_at.type) not in Token.FUNCTIONS:
+            self.error(f"{t} is not a valid function.")
+        self.eat(t)
+
+        return f
 
     def parse(self):
         """Parses the whole AST."""
