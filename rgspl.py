@@ -6,11 +6,12 @@ Supports (negative) integers/floats and vectors of those ;
 Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
-Read from right to left, this is the grammar supported:
+Read from right to left, this is the grammar supported;
+A suffix _ is used to refer to a token type:
     PROGRAM := (ASSIGNMENT | DYAD | MONAD)* ARRAY
     MONAD := FUNCTION
     DYAD := ARRAY FUNCTION
-    ASSIGNMENT := VARIABLE_ "←"
+    ASSIGNMENT := ID_ "←"
     FUNCTION := F | FUNCTION "⍨"
     F := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
     ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
@@ -24,7 +25,7 @@ class Token:
     # "Data types"
     INTEGER = "INTEGER"
     FLOAT = "FLOAT"
-    VARIABLE = "VAR"
+    ID = "ID"
     # Functions
     PLUS = "PLUS"
     MINUS = "MINUS"
@@ -46,9 +47,8 @@ class Token:
     MONADIC_OPS = [COMMUTE]
 
     # What You See Is What You Get characters that correspond to tokens.
-    WYSIWYG = "+-×÷()⍨"
     # The mapping from characteres to token types.
-    mapping = {
+    WYSIWYG_MAPPING = {
         "+": PLUS,
         "-": MINUS,
         "×": TIMES,
@@ -60,6 +60,8 @@ class Token:
         "(": LPARENS,
         ")": RPARENS,
     }
+
+    ID_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
     def __init__(self, type_, value):
         self.type = type_
@@ -77,7 +79,7 @@ class Tokenizer:
 
     def __init__(self, code):
         self.code = code
-        self.pos = len(self.code) - 1
+        self.pos = 0
         self.current_char = self.code[self.pos]
 
     def error(self, message):
@@ -87,8 +89,8 @@ class Tokenizer:
     def advance(self):
         """Advances the cursor position and sets the current character."""
 
-        self.pos -= 1
-        self.current_char = None if self.pos < 0 else self.code[self.pos]
+        self.pos += 1
+        self.current_char = None if self.pos >= len(self.code) else self.code[self.pos]
 
     def skip_whitespace(self):
         """Skips all the whitespace in the source code."""
@@ -99,40 +101,49 @@ class Tokenizer:
     def get_integer(self):
         """Parses an integer from the source code."""
 
-        end_idx = self.pos
+        start_idx = self.pos
         while self.current_char and self.current_char.isdigit():
             self.advance()
-        return self.code[self.pos+1:end_idx+1]
+        return self.code[start_idx:self.pos]
 
     def get_number_token(self):
         """Parses a number token from the source code."""
 
-        parts = [self.get_integer()]
+        parts = []
+        # Check for a negation of the number.
+        if self.current_char == "¯":
+            self.advance()
+            parts.append("-")
+        parts.append(self.get_integer())
         # Check if we have a decimal number here.
         if self.current_char == ".":
             self.advance()
             parts.append(".")
             parts.append(self.get_integer())
-        # Check for a negation of the number.
-        if self.current_char == "¯":
-            self.advance()
-            parts.append("-")
 
-        num = "".join(parts[::-1])
+        num = "".join(parts)
         if "." in num:
             return Token(Token.FLOAT, float(num))
         else:
             return Token(Token.INTEGER, int(num))
 
+    def get_id_token(self):
+        """Retrieves an identifier token."""
+
+        start = self.pos
+        while self.current_char and self.current_char in Token.ID_CHARS:
+            self.advance()
+        return Token(Token.ID, self.code[start:self.pos])
+
     def get_wysiwyg_token(self):
         """Retrieves a WYSIWYG token."""
 
         char = self.current_char
-        if char in Token.mapping:
-            self.advance()
-            return Token(Token.mapping[char], char)
-
-        self.error("Could not parse WYSIWYG token.")
+        self.advance()
+        try:
+            return Token(Token.WYSIWYG_MAPPING[char], char)
+        except KeyError:
+            self.error("Could not parse WYSIWYG token.")
 
     def get_next_token(self):
         """Finds the next token in the source code."""
@@ -141,10 +152,13 @@ class Tokenizer:
         if not self.current_char:
             return Token(Token.EOF, None)
 
-        if self.current_char in "0123456789":
+        if self.current_char in "¯0123456789":
             return self.get_number_token()
 
-        if self.current_char in Token.WYSIWYG:
+        if self.current_char in Token.ID_CHARS:
+            return self.get_id_token()
+
+        if self.current_char in Token.WYSIWYG_MAPPING:
             return self.get_wysiwyg_token()
 
         self.error("Could not parse the next token...")
@@ -155,7 +169,8 @@ class Tokenizer:
         tokens = [self.get_next_token()]
         while tokens[-1].type != Token.EOF:
             tokens.append(self.get_next_token())
-        return tokens[::-1]
+        # Move the EOF token to the beginning of the list.
+        return [tokens[-1]] + tokens[:-1]
 
 
 class ASTNode:
