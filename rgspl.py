@@ -8,7 +8,8 @@ Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported;
 A suffix _ is used to refer to a token type:
-    PROGRAM := (ASSIGNMENT | DYAD | MONAD)* ARRAY
+    PROGRAM := EOF STATEMENT
+    STATEMENT := (ASSIGNMENT | DYAD | MONAD)* ARRAY
     MONAD := FUNCTION
     DYAD := ARRAY FUNCTION
     ASSIGNMENT := ID_ "←"
