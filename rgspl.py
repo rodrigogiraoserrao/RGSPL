@@ -20,6 +20,8 @@ A suffix _ is used to refer to a token type:
 """
 # pylint: disable=invalid-name
 
+from typing import List
+
 
 class Token:
     """Represents a token parsed from the source code."""
@@ -189,7 +191,7 @@ class ASTNode:
 
 class S(ASTNode):
     """Node for a simple scalar like 3 or ¯4.2"""
-    def __init__(self, token):
+    def __init__(self, token: Token):
         self.token = token
         self.value = self.token.value
 
@@ -199,7 +201,7 @@ class S(ASTNode):
 
 class A(ASTNode):
     """Node for an array of simple scalars, like 3 ¯4 5.6"""
-    def __init__(self, children):
+    def __init__(self, children: List[ASTNode]):
         self.children = children
 
     def __str__(self):
@@ -208,7 +210,7 @@ class A(ASTNode):
 
 class MOp(ASTNode):
     """Node for monadic operators like ⍨"""
-    def __init__(self, token, child):
+    def __init__(self, token: Token, child: ASTNode):
         self.token = token
         self.child = child
 
@@ -227,7 +229,7 @@ class F(ASTNode):
 
 class Monad(ASTNode):
     """Node for monadic function calls."""
-    def __init__(self, function, omega):
+    def __init__(self, function: Token, omega: ASTNode):
         self.function = function
         self.omega = omega
 
@@ -237,7 +239,7 @@ class Monad(ASTNode):
 
 class Dyad(ASTNode):
     """Node for dyadic functions."""
-    def __init__(self, function, alpha, omega):
+    def __init__(self, function: Token, alpha: ASTNode, omega: ASTNode):
         self.function = function
         self.alpha = alpha
         self.omega = omega
