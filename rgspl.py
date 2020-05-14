@@ -12,11 +12,13 @@ A suffix _ is used to refer to a token type:
     MONAD := FUNCTION
     DYAD := ARRAY FUNCTION
     ASSIGNMENT := ID_ "←"
-    FUNCTION := F | FUNCTION "⍨"
+    FUNCTION := F | FUNCTION MOP
+    MOP := "⍨"
     F := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
     ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
     SCALAR := INTEGER_ | FLOAT_
 """
+# pylint: disable=invalid-name
 
 
 class Token:
@@ -181,8 +183,11 @@ class ASTNode:
     These ASTs can then be traversed to interpret an APL program.
     """
 
+    def __repr__(self):
+        return self.__str__()
 
-class Scalar(ASTNode):
+
+class S(ASTNode):
     """Node for a simple scalar like 3 or ¯4.2"""
     def __init__(self, token):
         self.token = token
@@ -191,20 +196,14 @@ class Scalar(ASTNode):
     def __str__(self):
         return f"S({self.value})"
 
-    def __repr__(self):
-        return self.__str__()
 
-
-class Array(ASTNode):
+class A(ASTNode):
     """Node for an array of simple scalars, like 3 ¯4 5.6"""
     def __init__(self, children):
         self.children = children
 
     def __str__(self):
         return f"A({self.children})"
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class MOp(ASTNode):
@@ -216,35 +215,35 @@ class MOp(ASTNode):
     def __str__(self):
         return f"MOp({self.token.value} {self.child})"
 
-    def __repr__(self):
-        return self.__str__()
+
+class F(ASTNode):
+    """Node for built-in functions like + or ⌈"""
+    def __init__(self, function: Token):
+        self.function = function
+
+    def __str__(self):
+        return f"F({self.function.value})"
 
 
 class Monad(ASTNode):
-    """Node for monadic functions."""
-    def __init__(self, token, child):
-        self.token = token
-        self.child = child
+    """Node for monadic function calls."""
+    def __init__(self, function, omega):
+        self.function = function
+        self.omega = omega
 
     def __str__(self):
-        return f"Monad({self.token.value} {self.child})"
-
-    def __repr__(self):
-        return self.__str__()
+        return f"Monad({self.function} {self.omega})"
 
 
 class Dyad(ASTNode):
     """Node for dyadic functions."""
-    def __init__(self, token, left, right):
-        self.token = token
-        self.left = left
-        self.right = right
+    def __init__(self, function, alpha, omega):
+        self.function = function
+        self.alpha = alpha
+        self.omega = omega
 
     def __str__(self):
-        return f"Dyad({self.token.value} {self.left} {self.right})"
-
-    def __repr__(self):
-        return self.__str__()
+        return f"Dyad({self.function.value} {self.alpha} {self.omega})"
 
 
 class Parser:
