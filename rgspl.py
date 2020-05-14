@@ -14,7 +14,7 @@ Read from right to left, this is the grammar supported:
     mop := "⍨"
     f := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
     array := scalar | ( "(" statement ")" | scalar )+
-    scalar := INTEGER | FLOAT
+    scalar := INTEGER | FLOAT | ID
 """
 # pylint: disable=invalid-name
 
@@ -248,12 +248,21 @@ class Dyad(ASTNode):
 
 class Assignment(ASTNode):
     """Node for assignment expressions."""
-    def __init__(self, varname: Token, value: ASTNode):
+    def __init__(self, varname: ASTNode, value: ASTNode):
         self.varname = varname
         self.value = value
 
     def __str__(self):
-        return f"{self.varname.value} ← {self.value}"
+        return f"Assignment({self.varname.token.value} ← {self.value})"
+
+
+class Var(ASTNode):
+    """Node for variable references."""
+    def __init__(self, token: Token):
+        self.token = token
+
+    def __str__(self):
+        return f"Var({self.token.value})"
 
 
 class Parser:
@@ -307,14 +316,13 @@ class Parser:
         relevant_types = [Token.ASSIGNMENT] + Token.FUNCTIONS + Token.MONADIC_OPS
         statement = self.parse_array()
         while self.token_at.type in relevant_types:
-            # pylint: disable=attribute-defined-outside-init
             if self.token_at.type == Token.ASSIGNMENT:
                 self.eat(Token.ASSIGNMENT)
-                statement = Assignment(self.token_at, statement)
+                statement = Assignment(Var(self.token_at), statement)
                 self.eat(Token.ID)
             else:
                 function = self.parse_function()
-                if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
+                if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.ID]:
                     array = self.parse_array()
                     statement = Dyad(function, array, statement)
                 else:
@@ -326,8 +334,11 @@ class Parser:
         """Parses an array composed of possibly several simple scalars."""
 
         self.debug(f"Parsing array from {self.tokens[:self.pos+1]}")
+
         nodes = []
-        while self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT]:
+        while self.token_at.type in [
+            Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.ID
+        ]:
             if self.token_at.type == Token.RPARENS:
                 self.eat(Token.RPARENS)
                 nodes.append(self.parse_statement())
@@ -348,14 +359,17 @@ class Parser:
 
         self.debug(f"Parsing scalar from {self.tokens[:self.pos+1]}")
 
-        if self.token_at.type == Token.INTEGER:
-            node = S(self.token_at)
+        if self.token_at.type == Token.ID:
+            scalar = Var(self.token_at)
+            self.eat(Token.ID)
+        elif self.token_at.type == Token.INTEGER:
+            scalar = S(self.token_at)
             self.eat(Token.INTEGER)
         else:
-            node = S(self.token_at)
+            scalar = S(self.token_at)
             self.eat(Token.FLOAT)
 
-        return node
+        return scalar
 
     def parse_function(self):
         """Parses a function possibly monadically operated upon."""
