@@ -7,32 +7,42 @@ Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported:
-    PROGRAM := EOF STATEMENT
-    STATEMENT := ( ARRAY FUNCTION | FUNCTION )* ARRAY
-    ARRAY := ( "(" STATEMENT ")" | SCALAR )+
-    SCALAR := INTEGER | FLOAT
+    PROGRAM := (ASSIGNMENT | DYAD | MONAD)* ARRAY
+    MONAD := FUNCTION
+    DYAD := ARRAY FUNCTION
+    ASSIGNMENT := VARIABLE_ "←"
     FUNCTION := F | FUNCTION "⍨"
-    F := "+" | "-" | "×" | "÷"
+    F := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
+    ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
+    SCALAR := INTEGER_ | FLOAT_
 """
 
 
 class Token:
     """Represents a token parsed from the source code."""
 
+    # "Data types"
     INTEGER = "INTEGER"
     FLOAT = "FLOAT"
+    VARIABLE = "VAR"
+    # Functions
     PLUS = "PLUS"
     MINUS = "MINUS"
     TIMES = "TIMES"
     DIVIDE = "DIVIDE"
-    NEGATE = "NEGATE"
+    CEILING = "CEILING"
+    FLOOR = "FLOOR"
+    # Operators
     COMMUTE = "COMMUTE"
+    # Misc
+    NEGATE = "NEGATE"
+    ASSIGNMENT = "ASSIGNMENT"
     LPARENS = "LPARENS"
     RPARENS = "RPARENS"
     EOF = "EOF"
 
     # Helpful lists of token types.
-    FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE]
+    FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING]
     MONADIC_OPS = [COMMUTE]
 
     # What You See Is What You Get characters that correspond to tokens.
@@ -43,9 +53,12 @@ class Token:
         "-": MINUS,
         "×": TIMES,
         "÷": DIVIDE,
+        "⌈": CEILING,
+        "⌊": FLOOR,
+        "⍨": COMMUTE,
+        "←": ASSIGNMENT,
         "(": LPARENS,
         ")": RPARENS,
-        "⍨": COMMUTE,
     }
 
     def __init__(self, type_, value):
