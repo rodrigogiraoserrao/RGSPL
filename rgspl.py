@@ -6,18 +6,18 @@ Supports (negative) integers/floats and vectors of those ;
 Supports the monadic operator ⍨ ;
 Supports parenthesized expressions ;
 
-Read from right to left, this is the grammar supported;
-A suffix _ is used to refer to a token type:
-    PROGRAM := EOF STATEMENT
-    STATEMENT := (ASSIGNMENT | DYAD | MONAD)* ARRAY
-    MONAD := FUNCTION
-    DYAD := ARRAY FUNCTION
-    ASSIGNMENT := ID_ "←"
-    FUNCTION := F | FUNCTION MOP
-    MOP := "⍨"
-    F := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
-    ARRAY := ARRAY* ( "(" STATEMENT ")" | SCALAR )
-    SCALAR := INTEGER_ | FLOAT_
+Read from right to left, this is the grammar supported:
+
+    program := EOF statemnt
+    statement := (assignment | dyad | monad)* array
+    monad := function
+    dyad := array function
+    assignment := ID "←"
+    function := f | function mop
+    mop := "⍨"
+    f := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
+    array := ( "(" statement ")" | scalar )+
+    scalar := INTEGER | FLOAT
 """
 # pylint: disable=invalid-name
 
@@ -336,10 +336,10 @@ class Parser:
 
         self.debug(f"Parsing scalar from {self.tokens[:self.pos+1]}")
         if self.token_at.type == Token.INTEGER:
-            node = Scalar(self.token_at)
+            node = S(self.token_at)
             self.eat(Token.INTEGER)
         else:
-            node = Scalar(self.token_at)
+            node = S(self.token_at)
             self.eat(Token.FLOAT)
         return node
 
