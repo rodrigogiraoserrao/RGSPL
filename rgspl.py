@@ -18,6 +18,7 @@ Read from right to left, this is the grammar supported:
 """
 # pylint: disable=invalid-name
 
+import argparse
 from typing import List
 
 
@@ -412,5 +413,47 @@ class Parser:
         return self.parse_program()
 
 if __name__ == "__main__":
-    while inp := input(" >> "):
-        print(Parser(Tokenizer(inp), debug=True).parse())
+
+    parser = argparse.ArgumentParser(description="Parse and interpret an APL program.")
+    main_group = parser.add_mutually_exclusive_group()
+    main_group.add_argument(
+        "--repl",
+        action="store_true",
+        help="starts a REPL session",
+    )
+    main_group.add_argument(
+        "-f",
+        "--file",
+        nargs=1,
+        metavar="filename",
+        help="filename with code to parse and interpret",
+        type=str,
+    )
+    main_group.add_argument(
+        "-c",
+        "--code",
+        nargs="+",
+        metavar="expression",
+        help="expression(s) to be interpreted",
+        type=str,
+    )
+
+    args = parser.parse_args()
+
+    if args.repl:
+        while inp := input(" >> "):
+            try:
+                print(Parser(Tokenizer(inp), debug=True).parse())
+            except Exception as error:
+                print(f"Caught '{error}', skipping execution.")
+
+    elif args.code:
+        for expr in args.code:
+            print(f"{expr} :")
+            print(Parser(Tokenizer(expr), debug=True).parse())
+
+    elif args.file:
+        print("Not implemented yet...")
+
+    else:
+        parser.print_usage()
