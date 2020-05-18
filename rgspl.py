@@ -19,6 +19,7 @@ Read from right to left, this is the grammar supported:
 # pylint: disable=invalid-name
 
 import argparse
+from math import ceil, floor
 from typing import List
 
 
@@ -211,19 +212,21 @@ class MOp(ASTNode):
     """Node for monadic operators like ⍨"""
     def __init__(self, token: Token, child: ASTNode):
         self.token = token
+        self.operator = self.token.value
         self.child = child
 
     def __str__(self):
-        return f"MOp({self.token.value} {self.child})"
+        return f"MOp({self.operator} {self.child})"
 
 
 class F(ASTNode):
     """Node for built-in functions like + or ⌈"""
-    def __init__(self, function: Token):
-        self.function = function
+    def __init__(self, token: Token):
+        self.token = token
+        self.function = self.token.value
 
     def __str__(self):
-        return f"F({self.function.value})"
+        return f"F({self.function})"
 
 
 class Monad(ASTNode):
@@ -261,6 +264,7 @@ class Var(ASTNode):
     """Node for variable references."""
     def __init__(self, token: Token):
         self.token = token
+        self.name = self.token.value
 
     def __str__(self):
         return f"Var({self.token.value})"
@@ -412,10 +416,140 @@ class Parser:
         """Parses the whole AST."""
         return self.parse_program()
 
+
+class NodeVisitor:
+    """Base class for the node visitor pattern."""
+    def visit(self, node, **kwargs):
+        """Dispatches the visit call to the appropriate function."""
+        method_name = f"visit_{type(node).__name__}"
+        visitor = getattr(self, method_name, self.generic_visit)
+        return visitor(node, **kwargs)
+
+    def generic_visit(self, node, **kwargs):
+        """Default method for unknown nodes."""
+        raise Exception(f"No visit method for {type(node).__name__}")
+
+
+def monadic_permeate(func):
+    """Decorates a function to permeate into simple scalars."""
+
+    def decorated(omega):
+        if isinstance(omega, list):
+            return [decorated(elem) for elem in omega]
+        else:
+            return func(omega)
+    return decorated
+
+
+def dyadic_permeate(func):
+    """Decorates a function to permeate through the left and right arguments."""
+
+    def decorated(alpha, omega):
+        if not isinstance(alpha, list) and not isinstance(omega, list):
+            return func(alpha, omega)
+        elif isinstance(alpha, list) and isinstance(omega, list):
+            if len(alpha) != len(omega):
+                raise IndexError("Arguments have mismatching lengths.")
+            return [decorated(al, om) for al, om in zip(alpha, omega)]
+        elif isinstance(alpha, list):
+            return [decorated(al, omega) for al in alpha]
+        else:
+            return [decorated(alpha, om) for om in omega]
+    return decorated
+
+
+class Interpreter(NodeVisitor):
+    """APL interpreter using the visitor pattern."""
+
+    monadic_functions = {
+        "+": monadic_permeate(lambda x: x),
+        "-": monadic_permeate(lambda x: -x),
+        "×": monadic_permeate(lambda x: 0 if not x else abs(x)//x),
+        "÷": monadic_permeate(lambda x: 1/x),
+        "⌈": monadic_permeate(ceil),
+        "⌊": monadic_permeate(floor),
+    }
+
+    dyadic_functions = {
+        "+": dyadic_permeate(lambda a, w: a + w),
+        "-": dyadic_permeate(lambda a, w: a - w),
+        "×": dyadic_permeate(lambda a, w: a * w),
+        "÷": dyadic_permeate(lambda a, w: a / w),
+        "⌈": dyadic_permeate(max),
+        "⌊": dyadic_permeate(min),
+    }
+
+    def __init__(self, parser):
+        self.parser = parser
+        self.var_lookup = {}
+
+    def visit_S(self, scalar, **__):
+        """Returns the value of a scalar."""
+        return scalar.value
+
+    def visit_A(self, array, **__):
+        """Returns the value of an array."""
+        return [self.visit(child) for child in array.children]
+
+    def visit_Var(self, var, **__):
+        """Tries to fetch the value of a variable."""
+        return self.var_lookup[var.name]
+
+    def visit_Assignment(self, assignment, **kwargs):
+        """Assigns a value to a variable."""
+
+        value = self.visit(assignment.value, **kwargs)
+        varname = assignment.varname.name
+        self.var_lookup[varname] = value
+        return value
+
+    def visit_Monad(self, monad, **kwargs):
+        """Evaluate the function on its only argument."""
+
+        kwargs["valence"] = 1
+        function = self.visit(monad.function, **kwargs)
+        omega = self.visit(monad.omega)
+        return function(omega)
+
+    def visit_Dyad(self, dyad, **kwargs):
+        """Evaluate a dyad on both its arguments."""
+
+        kwargs["valence"] = 2
+        function = self.visit(dyad.function, **kwargs)
+        omega = self.visit(dyad.omega)
+        alpha = self.visit(dyad.alpha)
+        return function(alpha, omega)
+
+    def visit_F(self, func, **kwargs):
+        """Fetch the callable function."""
+
+        if kwargs["valence"] == 1:
+            return self.monadic_functions[func.function]
+        elif kwargs["valence"] == 2:
+            return self.dyadic_functions[func.function]
+
+    def visit_MOp(self, mop, **kwargs):
+        """Fetch the operand and alter it."""
+
+        if mop.operator == "⍨":
+            func = self.visit(mop.child, **{**kwargs, **{"valence": 2}})
+            if kwargs["valence"] == 1:
+                return lambda x: func(x, x)
+            elif kwargs["valence"] == 2:
+                return lambda a, w: func(w, a)
+        else:
+            raise SyntaxError(f"Unknown monadic operator {mop.operator}.")
+
+    def interpret(self):
+        """Interpret the APL code the parser was given."""
+        tree = self.parser.parse()
+        print(tree)
+        return self.visit(tree)
+
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Parse and interpret an APL program.")
-    main_group = parser.add_mutually_exclusive_group()
+    arg_parser = argparse.ArgumentParser(description="Parse and interpret an APL program.")
+    main_group = arg_parser.add_mutually_exclusive_group()
     main_group.add_argument(
         "--repl",
         action="store_true",
@@ -438,12 +572,12 @@ if __name__ == "__main__":
         type=str,
     )
 
-    args = parser.parse_args()
+    args = arg_parser.parse_args()
 
     if args.repl:
         while inp := input(" >> "):
             try:
-                print(Parser(Tokenizer(inp), debug=True).parse())
+                print(Interpreter(Parser(Tokenizer(inp), debug=True)).interpret())
             except Exception as error:
                 print(f"Caught '{error}', skipping execution.")
 
@@ -456,4 +590,4 @@ if __name__ == "__main__":
         print("Not implemented yet...")
 
     else:
-        parser.print_usage()
+        arg_parser.print_usage()
