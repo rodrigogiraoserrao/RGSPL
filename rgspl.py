@@ -8,7 +8,8 @@ Supports parenthesized expressions ;
 
 Read from right to left, this is the grammar supported:
 
-    program := EOF statemnt
+    program := EOF statement_list
+    statement_list := (statement "⋄")* statement
     statement := ( ID "←" | array function | function )* array
     function := f | function mop
     mop := "⍨"
@@ -40,6 +41,7 @@ class Token:
     # Operators
     COMMUTE = "COMMUTE"
     # Misc
+    DYAMOND = "DYAMOND"
     NEGATE = "NEGATE"
     ASSIGNMENT = "ASSIGNMENT"
     LPARENS = "LPARENS"
@@ -63,6 +65,7 @@ class Token:
         "←": ASSIGNMENT,
         "(": LPARENS,
         ")": RPARENS,
+        "⋄": DYAMOND,
     }
 
     ID_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -270,6 +273,15 @@ class Var(ASTNode):
         return f"Var({self.token.value})"
 
 
+class Statements(ASTNode):
+    """Node to represent a series of consecutive statements."""
+    def __init__(self):
+        self.children = []
+
+    def __str__(self):
+        return str(self.children)
+
+
 class Parser:
     """Implements a parser for a subset of the APL language.
 
@@ -309,9 +321,22 @@ class Parser:
         """Parses a full program."""
 
         self.debug(f"Parsing program from {self.tokens}")
-        statement = self.parse_statement()
+        statement_list = self.parse_statement_list()
         self.eat(Token.EOF)
-        return statement
+        return statement_list
+
+    def parse_statement_list(self):
+        """Parses a list of statements."""
+
+        self.debug(f"Parsing a statement list from {self.tokens}")
+        root = Statements()
+        statements = [self.parse_statement()]
+        while self.token_at.type == Token.DYAMOND:
+            self.eat(Token.DYAMOND)
+            statements.append(self.parse_statement())
+
+        root.children = statements
+        return root
 
     def parse_statement(self):
         """Parses a statement."""
@@ -494,6 +519,10 @@ class Interpreter(NodeVisitor):
     def visit_Var(self, var, **__):
         """Tries to fetch the value of a variable."""
         return self.var_lookup[var.name]
+
+    def visit_Statements(self, statements, **__):
+        """Visits each statement in order."""
+        return [self.visit(child) for child in statements.children[::-1]][-1]
 
     def visit_Assignment(self, assignment, **kwargs):
         """Assigns a value to a variable."""
