@@ -41,7 +41,7 @@ class Token:
     # Operators
     COMMUTE = "COMMUTE"
     # Misc
-    DYAMOND = "DYAMOND"
+    DIAMOND = "DIAMOND"
     NEGATE = "NEGATE"
     ASSIGNMENT = "ASSIGNMENT"
     LPARENS = "LPARENS"
@@ -65,7 +65,7 @@ class Token:
         "←": ASSIGNMENT,
         "(": LPARENS,
         ")": RPARENS,
-        "⋄": DYAMOND,
+        "⋄": DIAMOND,
     }
 
     ID_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -331,8 +331,8 @@ class Parser:
         self.debug(f"Parsing a statement list from {self.tokens}")
         root = Statements()
         statements = [self.parse_statement()]
-        while self.token_at.type == Token.DYAMOND:
-            self.eat(Token.DYAMOND)
+        while self.token_at.type == Token.DIAMOND:
+            self.eat(Token.DIAMOND)
             statements.append(self.parse_statement())
 
         root.children = statements
