@@ -68,7 +68,7 @@ class Token:
         "⋄": DIAMOND,
     }
 
-    ID_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    ID_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
     def __init__(self, type_, value):
         self.type = type_
