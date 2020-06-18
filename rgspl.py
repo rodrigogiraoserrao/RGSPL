@@ -455,8 +455,8 @@ class NodeVisitor:
         raise Exception(f"No visit method for {type(node).__name__}")
 
 
-def monadic_permeate(func):
-    """Decorates a function to permeate into simple scalars."""
+def monadic_pervade(func):
+    """Decorates a function to pervade into simple scalars."""
 
     def decorated(omega):
         if isinstance(omega, list):
@@ -466,8 +466,8 @@ def monadic_permeate(func):
     return decorated
 
 
-def dyadic_permeate(func):
-    """Decorates a function to permeate through the left and right arguments."""
+def dyadic_pervade(func):
+    """Decorates a function to pervade through the left and right arguments."""
 
     def decorated(alpha, omega):
         if not isinstance(alpha, list) and not isinstance(omega, list):
@@ -487,21 +487,21 @@ class Interpreter(NodeVisitor):
     """APL interpreter using the visitor pattern."""
 
     monadic_functions = {
-        "+": monadic_permeate(lambda x: x),
-        "-": monadic_permeate(lambda x: -x),
-        "×": monadic_permeate(lambda x: 0 if not x else abs(x)//x),
-        "÷": monadic_permeate(lambda x: 1/x),
-        "⌈": monadic_permeate(ceil),
-        "⌊": monadic_permeate(floor),
+        "+": monadic_pervade(lambda x: x),
+        "-": monadic_pervade(lambda x: -x),
+        "×": monadic_pervade(lambda x: 0 if not x else abs(x)//x),
+        "÷": monadic_pervade(lambda x: 1/x),
+        "⌈": monadic_pervade(ceil),
+        "⌊": monadic_pervade(floor),
     }
 
     dyadic_functions = {
-        "+": dyadic_permeate(lambda a, w: a + w),
-        "-": dyadic_permeate(lambda a, w: a - w),
-        "×": dyadic_permeate(lambda a, w: a * w),
-        "÷": dyadic_permeate(lambda a, w: a / w),
-        "⌈": dyadic_permeate(max),
-        "⌊": dyadic_permeate(min),
+        "+": dyadic_pervade(lambda a, w: a + w),
+        "-": dyadic_pervade(lambda a, w: a - w),
+        "×": dyadic_pervade(lambda a, w: a * w),
+        "÷": dyadic_pervade(lambda a, w: a / w),
+        "⌈": dyadic_pervade(max),
+        "⌊": dyadic_pervade(min),
     }
 
     def __init__(self, parser):
