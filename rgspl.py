@@ -11,9 +11,10 @@ Read from right to left, this is the grammar supported:
     program := EOF statement_list
     statement_list := (statement "⋄")* statement
     statement := ( ID "←" | array function | function )* array
-    function := f | function mop
+    function := f | function mop | function dop f
+    dop := "∘"
     mop := "⍨"
-    f := "+" | "-" | "×" | "÷" | "⌈" | "⌊"
+    f := "+" | "-" | "×" | "÷" | "⌈" | "⌊" | "(" function ")"
     array := scalar | ( "(" statement ")" | scalar )+
     scalar := INTEGER | FLOAT | ID
 """
@@ -23,6 +24,8 @@ import argparse
 from math import ceil, floor
 from typing import List
 
+import functions
+
 
 class Token:
     """Represents a token parsed from the source code."""
@@ -30,6 +33,7 @@ class Token:
     # "Data types"
     INTEGER = "INTEGER"
     FLOAT = "FLOAT"
+    COMPLEX = "COMPLEX"
     ID = "ID"
     # Functions
     PLUS = "PLUS"
@@ -40,6 +44,7 @@ class Token:
     FLOOR = "FLOOR"
     # Operators
     COMMUTE = "COMMUTE"
+    JOT = "JOT"
     # Misc
     DIAMOND = "DIAMOND"
     NEGATE = "NEGATE"
@@ -51,6 +56,7 @@ class Token:
     # Helpful lists of token types.
     FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING]
     MONADIC_OPS = [COMMUTE]
+    DYADIC_OPS = [JOT]
 
     # What You See Is What You Get characters that correspond to tokens.
     # The mapping from characteres to token types.
@@ -62,6 +68,7 @@ class Token:
         "⌈": CEILING,
         "⌊": FLOOR,
         "⍨": COMMUTE,
+        "∘": JOT,
         "←": ASSIGNMENT,
         "(": LPARENS,
         ")": RPARENS,
@@ -113,8 +120,8 @@ class Tokenizer:
             self.advance()
         return self.code[start_idx:self.pos]
 
-    def get_number_token(self):
-        """Parses a number token from the source code."""
+    def get_real_number(self):
+        """Parses a real number from the source code."""
 
         parts = []
         # Check for a negation of the number.
@@ -130,9 +137,25 @@ class Tokenizer:
 
         num = "".join(parts)
         if "." in num:
-            return Token(Token.FLOAT, float(num))
+            return float(num)
         else:
-            return Token(Token.INTEGER, int(num))
+            return int(num)
+
+    def get_number_token(self):
+        """Parses a number token from the source code."""
+
+        real = self.get_real_number()
+        if self.current_char == "J":
+            self.advance()
+            im = self.get_real_number()
+            tok = Token(Token.COMPLEX, complex(real, im))
+        elif isinstance(real, int):
+            tok = Token(Token.INTEGER, real)
+        elif isinstance(real, float):
+            tok = Token(Token.FLOAT, real)
+        else:
+            self.error("Cannot recognize type of number.")
+        return tok
 
     def get_id_token(self):
         """Retrieves an identifier token."""
@@ -220,6 +243,18 @@ class MOp(ASTNode):
 
     def __str__(self):
         return f"MOp({self.operator} {self.child})"
+
+
+class DOp(ASTNode):
+    """Node for dyadic operators like ∘"""
+    def __init__(self, token: Token, left: ASTNode, right: ASTNode):
+        self.token = token
+        self.operator = self.token.value
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return f"DOP({self.left} {self.operator} {self.right})"
 
 
 class F(ASTNode):
@@ -317,6 +352,13 @@ class Parser:
         peek_at = self.pos - 1
         return None if peek_at < 0 else self.tokens[peek_at].type
 
+    def peek_beyond_parens(self):
+        """Returns the next token type that is not a parenthesis."""
+        peek_at = self.pos - 1
+        while peek_at >= 0 and self.tokens[peek_at].type == Token.RPARENS:
+            peek_at -= 1
+        return None if peek_at < 0 else self.tokens[peek_at].type
+
     def parse_program(self):
         """Parses a full program."""
 
@@ -343,7 +385,7 @@ class Parser:
 
         self.debug(f"Parsing statement from {self.tokens[:self.pos+1]}")
 
-        relevant_types = [Token.ASSIGNMENT] + Token.FUNCTIONS + Token.MONADIC_OPS
+        relevant_types = [Token.ASSIGNMENT, Token.RPARENS] + Token.FUNCTIONS + Token.MONADIC_OPS
         statement = self.parse_array()
         while self.token_at.type in relevant_types:
             if self.token_at.type == Token.ASSIGNMENT:
@@ -366,13 +408,15 @@ class Parser:
         self.debug(f"Parsing array from {self.tokens[:self.pos+1]}")
 
         nodes = []
-        while self.token_at.type in [
-            Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.ID
-        ]:
+        array_tokens = [Token.INTEGER, Token.FLOAT, Token.COMPLEX, Token.ID]
+        while self.token_at.type in array_tokens + [Token.RPARENS]:
             if self.token_at.type == Token.RPARENS:
-                self.eat(Token.RPARENS)
-                nodes.append(self.parse_statement())
-                self.eat(Token.LPARENS)
+                if self.peek_beyond_parens() in array_tokens:
+                    self.eat(Token.RPARENS)
+                    nodes.append(self.parse_statement())
+                    self.eat(Token.LPARENS)
+                else:
+                    break
             else:
                 nodes.append(self.parse_scalar())
         nodes = nodes[::-1]
@@ -395,9 +439,12 @@ class Parser:
         elif self.token_at.type == Token.INTEGER:
             scalar = S(self.token_at)
             self.eat(Token.INTEGER)
-        else:
+        elif self.token_at.type == Token.FLOAT:
             scalar = S(self.token_at)
             self.eat(Token.FLOAT)
+        else:
+            scalar = S(self.token_at)
+            self.eat(Token.COMPLEX)
 
         return scalar
 
@@ -411,6 +458,11 @@ class Parser:
             function.child = self.parse_function()
         else:
             function = self.parse_f()
+            if self.token_at.type in Token.DYADIC_OPS:
+                dop = DOp(self.token_at, None, function)
+                self.eat(dop.token.type)
+                dop.left = self.parse_function()
+                function = dop
         return function
 
     def parse_mop(self):
@@ -430,10 +482,13 @@ class Parser:
 
         self.debug(f"Parsing f from {self.tokens[:self.pos+1]}")
 
-        f = F(self.token_at)
-        if (t := self.token_at.type) not in Token.FUNCTIONS:
-            self.error(f"{t} is not a valid function.")
-        self.eat(t)
+        if (t := self.token_at.type) in Token.FUNCTIONS:
+            f = F(self.token_at)
+            self.eat(t)
+        else:
+            self.eat(Token.RPARENS)
+            f = self.parse_function()
+            self.eat(Token.LPARENS)
 
         return f
 
@@ -454,7 +509,7 @@ class NodeVisitor:
         """Default method for unknown nodes."""
         raise Exception(f"No visit method for {type(node).__name__}")
 
-
+'''
 def monadic_pervade(func):
     """Decorates a function to pervade into simple scalars."""
 
@@ -481,11 +536,12 @@ def dyadic_pervade(func):
         else:
             return [decorated(alpha, om) for om in omega]
     return decorated
-
+'''
 
 class Interpreter(NodeVisitor):
     """APL interpreter using the visitor pattern."""
 
+    """
     monadic_functions = {
         "+": monadic_pervade(lambda x: x),
         "-": monadic_pervade(lambda x: -x),
@@ -503,6 +559,7 @@ class Interpreter(NodeVisitor):
         "⌈": dyadic_pervade(max),
         "⌊": dyadic_pervade(min),
     }
+    """
 
     def __init__(self, parser):
         self.parser = parser
@@ -549,13 +606,14 @@ class Interpreter(NodeVisitor):
         alpha = self.visit(dyad.alpha)
         return function(alpha, omega)
 
-    def visit_F(self, func, **kwargs):
+    def visit_F(self, func, **_):
         """Fetch the callable function."""
 
-        if kwargs["valence"] == 1:
-            return self.monadic_functions[func.function]
-        elif kwargs["valence"] == 2:
-            return self.dyadic_functions[func.function]
+        name = func.token.type.lower()
+        call = getattr(functions, name, None)
+        if call is None:
+            raise Exception(f"Function {name} not implemented in functions yet.")
+        return call
 
     def visit_MOp(self, mop, **kwargs):
         """Fetch the operand and alter it."""
@@ -568,6 +626,19 @@ class Interpreter(NodeVisitor):
                 return lambda a, w: func(w, a)
         else:
             raise SyntaxError(f"Unknown monadic operator {mop.operator}.")
+
+    def visit_DOp(self, dop, **kwargs):
+        """Fetch the operands and alter them as needed."""
+
+        left = self.visit(dop.left, **kwargs)
+
+        if dop.operator == "∘":
+            if kwargs["valence"] == 1:
+                right = self.visit(dop.right, **kwargs)
+                return lambda w: left(right(w))
+            elif kwargs["valence"] == 2:
+                right = self.visit(dop.right, **{**kwargs, **{"valence": 1}})
+                return lambda a, w: left(a, right(w))
 
     def interpret(self):
         """Interpret the APL code the parser was given."""
