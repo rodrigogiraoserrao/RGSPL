@@ -12,22 +12,22 @@ def pervade(func):
     """Decorator to define function pervasion into simple scalars."""
 
     @functools.wraps(func)
-    def pervasive_func(w, a=None):
-        if not isinstance(w, list) and not isinstance(a, list):
-            return func(w, a)
-        elif isinstance(w, list) and isinstance(a, list):
-            if len(w) != len(a):
+    def pervasive_func(*, alpha=None, omega):
+        if not isinstance(omega, list) and not isinstance(alpha, list):
+            return func(alpha=alpha, omega=omega)
+        elif isinstance(omega, list) and isinstance(alpha, list):
+            if len(omega) != len(alpha):
                 raise IndexError("Cannot pervade with mismatched lengths.")
-            return [pervasive_func(w_, a_) for w_, a_ in zip(w, a)]
-        elif isinstance(w, list):
-            return [pervasive_func(w_, a) for w_ in w]
+            return [pervasive_func(omega=w, alpha=a) for a, w in zip(alpha, omega)]
+        elif isinstance(omega, list):
+            return [pervasive_func(alpha=alpha, omega=w) for w in omega]
         else:
-            return [pervasive_func(w, a_) for a_ in a]
+            return [pervasive_func(alpha=a, omega=omega) for a in alpha]
 
     return pervasive_func
 
 @pervade
-def plus(w, a=None):
+def plus(*, alpha=None, omega):
     """Define monadic complex conjugate and binary addition.
 
     Monadic case:
@@ -38,13 +38,13 @@ def plus(w, a=None):
     0 7 3J1
     """
 
-    if a is None:
-        return w.conjugate()
+    if alpha is None:
+        return omega.conjugate()
     else:
-        return a + w
+        return alpha + omega
 
 @pervade
-def minus(w, a=0):
+def minus(*, alpha=0, omega):
     """Define monadic symmetric numbers and dyadic subtraction.
 
     Monadic case:
@@ -55,10 +55,10 @@ def minus(w, a=0):
     ¯2J¯0.5
     """
 
-    return a - w
+    return alpha - omega
 
 @pervade
-def times(w, a=None):
+def times(*, alpha=None, omega):
     """Define monadic sign and dyadic multiplication.
 
     Monadic case:
@@ -69,19 +69,19 @@ def times(w, a=None):
     0 6 15
     """
 
-    if a is None:
-        if not w:
+    if alpha is None:
+        if not omega:
             return 0
         else:
-            div = w/abs(w)
-            if not isinstance(w, complex):
+            div = omega/abs(omega)
+            if not isinstance(omega, complex):
                 div = round(div)
             return div
     else:
-        return a*w
+        return alpha*omega
 
 @pervade
-def divide(w, a=1):
+def divide(*, alpha=1, omega):
     """Define monadic reciprocal and dyadic division.
 
     Monadic case:
@@ -92,10 +92,10 @@ def divide(w, a=1):
     1.33333333
     """
 
-    return a/w
+    return alpha/omega
 
 @pervade
-def ceiling(w, a=None):
+def ceiling(*, alpha=None, omega):
     """Define monadic ceiling and dyadic max.
 
     Monadic case:
@@ -107,15 +107,15 @@ def ceiling(w, a=None):
     4
     """
 
-    if a is None:
-        if isinstance(a, complex):
+    if alpha is None:
+        if isinstance(alpha, complex):
             raise NotImplementedError("Complex ceiling not implemented yet.")
-        return math.ceil(w)
+        return math.ceil(omega)
     else:
-        return max(a, w)
+        return max(alpha, omega)
 
 @pervade
-def floor(w, a=None):
+def floor(*, alpha=None, omega):
     """Define monadic floor and dyadic min.
 
     Monadic case:
@@ -127,9 +127,78 @@ def floor(w, a=None):
     ¯2
     """
 
-    if a is None:
-        if isinstance(a, complex):
+    if alpha is None:
+        if isinstance(alpha, complex):
             raise NotImplementedError("Complex floor not implemented yet.")
-        return math.floor(w)
+        return math.floor(omega)
     else:
-        return min(a, w)
+        return min(alpha, omega)
+
+@pervade
+def right_tack(*, alpha=None, omega):
+    """Define monadic same and dyadic right.
+
+    Monadic case:
+        ⊢ 3
+    3
+    Dyadic case:
+        1 2 3 ⊢ 4 5 6
+    4 5 6
+    """
+
+    return omega
+
+@pervade
+def left_tack(*, alpha=None, omega):
+    """Define monadic same and dyadic left.
+
+    Monadic case:
+        ⊣ 3
+    3
+    Dyadic case:
+        1 2 3 ⊣ 4 5 6
+    1 2 3
+    """
+
+    return alpha if alpha is not None else omega
+
+def nested_prepend(value, array):
+    """Takes a value and prepends it to every sublist of the array."""
+
+    if isinstance(array, list) and not isinstance(array[0], list):
+        return [value] + array
+    else:
+        return [nested_prepend(value, sub) for sub in array]
+
+def iota(*, alpha=None, omega):
+    """Define monadic index generator and dyadic index of.
+
+    Monadic case:
+        ⍳ 4
+    0 1 2 3
+    Dyadic case:
+        6 5 32 4 ⍳ 32
+    2
+    """
+
+    if alpha is not None:
+        if not isinstance(alpha, list):
+            raise TypeError(
+                f"Cannot find index of elements in {type(alpha)} left argument."
+            )
+        if not isinstance(omega, list):
+            return alpha.index(omega) if omega in alpha else len(alpha)
+        else:
+            return [alpha.index(w) if w in alpha else len(alpha) for w in omega]
+    else:
+        if isinstance(omega, int):
+            return list(range(omega))
+        elif isinstance(omega, list) and len(omega) == 1:
+            return list(range(omega[0]))
+        elif isinstance(omega, list) and len(omega) == 2:
+            return [[[i, j] for j in range(omega[1])] for i in range(omega[0])]
+        elif isinstance(omega, list) and len(omega) > 2:
+            ret = iota(alpha=None, omega=omega[1:])
+            return [nested_prepend(i, ret) for i in range(omega[0])]
+        else:
+            raise TypeError(f"Cannot generate indices from {type(omega)}.")

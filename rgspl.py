@@ -1,31 +1,35 @@
 """
 Implement a subset of the APL programming language.
 
-Supports the monadic/dyadic functions +-×÷ ;
-Supports (negative) integers/floats and vectors of those ;
+Supports the monadic/dyadic functions +-×÷⌈⌊⊢⊣⍳ ;
+Supports (negative) integers/floats/complex numbers and vectors of those ;
 Supports the monadic operator ⍨ ;
+Supports the dyadic operator ∘ ;
 Supports parenthesized expressions ;
+Supports multiple expressions separated by ⋄ ;
+Supports comments with ⍝ ;
 
-Read from right to left, this is the grammar supported:
+This is the grammar supported:
 
-    program := EOF statement_list
-    statement_list := (statement "⋄")* statement
-    statement := ( ID "←" | array function | function )* array
-    function := f | function mop | function dop f
-    dop := "∘"
-    mop := "⍨"
-    f := "+" | "-" | "×" | "÷" | "⌈" | "⌊" | "(" function ")"
-    array := scalar | ( "(" statement ")" | scalar )+
-    scalar := INTEGER | FLOAT | ID
+    program        ::= EOF statement_list
+    statement_list ::= (statement "⋄")* statement
+    statement      ::= ( ID "←" | array function | function )* array
+    function       ::= function mop | function dop f | f
+    dop            ::= "∘"
+    mop            ::= "⍨" | "¨"
+    f              ::= "+" | "-" | "×" | "÷" | "⌈" | "⌊" |
+                     | "⊢" | "⊣" | "⍳" | LPARENS function RPARENS
+    array          ::= scalar | ( LPARENS statement RPARENS | scalar )+
+    scalar         ::= INTEGER | FLOAT | ID
 """
 # pylint: disable=invalid-name
 
 import argparse
-from math import ceil, floor
 from typing import List
 
+import doperators
 import functions
-
+import moperators
 
 class Token:
     """Represents a token parsed from the source code."""
@@ -42,8 +46,12 @@ class Token:
     DIVIDE = "DIVIDE"
     CEILING = "CEILING"
     FLOOR = "FLOOR"
+    RIGHT_TACK = "RIGHT_TACK"
+    LEFT_TACK = "LEFT_TACK"
+    IOTA = "IOTA"
     # Operators
     COMMUTE = "COMMUTE"
+    DIAERESIS = "DIAERESIS"
     JOT = "JOT"
     # Misc
     DIAMOND = "DIAMOND"
@@ -54,8 +62,8 @@ class Token:
     EOF = "EOF"
 
     # Helpful lists of token types.
-    FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING]
-    MONADIC_OPS = [COMMUTE]
+    FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA]
+    MONADIC_OPS = [COMMUTE, DIAERESIS]
     DYADIC_OPS = [JOT]
 
     # What You See Is What You Get characters that correspond to tokens.
@@ -67,7 +75,11 @@ class Token:
         "÷": DIVIDE,
         "⌈": CEILING,
         "⌊": FLOOR,
+        "⊢": RIGHT_TACK,
+        "⊣": LEFT_TACK,
+        "⍳": IOTA,
         "⍨": COMMUTE,
+        "¨": DIAERESIS,
         "∘": JOT,
         "←": ASSIGNMENT,
         "(": LPARENS,
@@ -109,8 +121,17 @@ class Tokenizer:
     def skip_whitespace(self):
         """Skips all the whitespace in the source code."""
 
-        while self.current_char and self.current_char in " \t":
+        while self.current_char and self.current_char in " \t\n":
             self.advance()
+
+    def skip_comment(self):
+        """Skips commented code."""
+
+        if not self.current_char == "⍝":
+            return
+        while self.current_char and self.current_char != "\n":
+            self.advance()
+        self.advance()
 
     def get_integer(self):
         """Parses an integer from the source code."""
@@ -179,6 +200,7 @@ class Tokenizer:
         """Finds the next token in the source code."""
 
         self.skip_whitespace()
+        self.skip_comment()
         if not self.current_char:
             return Token(Token.EOF, None)
 
@@ -509,57 +531,8 @@ class NodeVisitor:
         """Default method for unknown nodes."""
         raise Exception(f"No visit method for {type(node).__name__}")
 
-'''
-def monadic_pervade(func):
-    """Decorates a function to pervade into simple scalars."""
-
-    def decorated(omega):
-        if isinstance(omega, list):
-            return [decorated(elem) for elem in omega]
-        else:
-            return func(omega)
-    return decorated
-
-
-def dyadic_pervade(func):
-    """Decorates a function to pervade through the left and right arguments."""
-
-    def decorated(alpha, omega):
-        if not isinstance(alpha, list) and not isinstance(omega, list):
-            return func(alpha, omega)
-        elif isinstance(alpha, list) and isinstance(omega, list):
-            if len(alpha) != len(omega):
-                raise IndexError("Arguments have mismatching lengths.")
-            return [decorated(al, om) for al, om in zip(alpha, omega)]
-        elif isinstance(alpha, list):
-            return [decorated(al, omega) for al in alpha]
-        else:
-            return [decorated(alpha, om) for om in omega]
-    return decorated
-'''
-
 class Interpreter(NodeVisitor):
     """APL interpreter using the visitor pattern."""
-
-    """
-    monadic_functions = {
-        "+": monadic_pervade(lambda x: x),
-        "-": monadic_pervade(lambda x: -x),
-        "×": monadic_pervade(lambda x: 0 if not x else abs(x)//x),
-        "÷": monadic_pervade(lambda x: 1/x),
-        "⌈": monadic_pervade(ceil),
-        "⌊": monadic_pervade(floor),
-    }
-
-    dyadic_functions = {
-        "+": dyadic_pervade(lambda a, w: a + w),
-        "-": dyadic_pervade(lambda a, w: a - w),
-        "×": dyadic_pervade(lambda a, w: a * w),
-        "÷": dyadic_pervade(lambda a, w: a / w),
-        "⌈": dyadic_pervade(max),
-        "⌊": dyadic_pervade(min),
-    }
-    """
 
     def __init__(self, parser):
         self.parser = parser
@@ -595,7 +568,7 @@ class Interpreter(NodeVisitor):
         kwargs["valence"] = 1
         function = self.visit(monad.function, **kwargs)
         omega = self.visit(monad.omega)
-        return function(omega)
+        return function(omega=omega)
 
     def visit_Dyad(self, dyad, **kwargs):
         """Evaluate a dyad on both its arguments."""
@@ -604,7 +577,7 @@ class Interpreter(NodeVisitor):
         function = self.visit(dyad.function, **kwargs)
         omega = self.visit(dyad.omega)
         alpha = self.visit(dyad.alpha)
-        return function(alpha, omega)
+        return function(alpha=alpha, omega=omega)
 
     def visit_F(self, func, **_):
         """Fetch the callable function."""
@@ -621,9 +594,9 @@ class Interpreter(NodeVisitor):
         if mop.operator == "⍨":
             func = self.visit(mop.child, **{**kwargs, **{"valence": 2}})
             if kwargs["valence"] == 1:
-                return lambda x: func(x, x)
+                return lambda omega, **_: func(alpha=omega, omega=omega)
             elif kwargs["valence"] == 2:
-                return lambda a, w: func(w, a)
+                return lambda omega, alpha: func(alpha=alpha, omega=omega)
         else:
             raise SyntaxError(f"Unknown monadic operator {mop.operator}.")
 
@@ -635,10 +608,10 @@ class Interpreter(NodeVisitor):
         if dop.operator == "∘":
             if kwargs["valence"] == 1:
                 right = self.visit(dop.right, **kwargs)
-                return lambda w: left(right(w))
+                return lambda omega, **_: left(omega=right(omega=omega))
             elif kwargs["valence"] == 2:
                 right = self.visit(dop.right, **{**kwargs, **{"valence": 1}})
-                return lambda a, w: left(a, right(w))
+                return lambda omega, alpha: left(alpha=alpha, omega=right(omega=omega))
 
     def interpret(self):
         """Interpret the APL code the parser was given."""
@@ -680,7 +653,7 @@ if __name__ == "__main__":
             try:
                 print(Interpreter(Parser(Tokenizer(inp), debug=True)).interpret())
             except Exception as error:
-                print(f"Caught '{error}', skipping execution.")
+                print(error)
 
     elif args.code:
         for expr in args.code:
