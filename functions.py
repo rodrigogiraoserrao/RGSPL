@@ -44,7 +44,7 @@ def plus(*, alpha=None, omega):
         return alpha + omega
 
 @pervade
-def minus(*, alpha=0, omega):
+def minus(*, alpha=None, omega):
     """Define monadic symmetric numbers and dyadic subtraction.
 
     Monadic case:
@@ -55,6 +55,8 @@ def minus(*, alpha=0, omega):
     ¯2J¯0.5
     """
 
+    if alpha is None:
+        alpha = 0
     return alpha - omega
 
 @pervade
@@ -81,7 +83,7 @@ def times(*, alpha=None, omega):
         return alpha*omega
 
 @pervade
-def divide(*, alpha=1, omega):
+def divide(*, alpha=None, omega):
     """Define monadic reciprocal and dyadic division.
 
     Monadic case:
@@ -92,6 +94,8 @@ def divide(*, alpha=1, omega):
     1.33333333
     """
 
+    if alpha is None:
+        alpha = 1
     return alpha/omega
 
 @pervade

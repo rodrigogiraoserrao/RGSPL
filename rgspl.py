@@ -583,35 +583,31 @@ class Interpreter(NodeVisitor):
         """Fetch the callable function."""
 
         name = func.token.type.lower()
-        call = getattr(functions, name, None)
-        if call is None:
-            raise Exception(f"Function {name} not implemented in functions yet.")
-        return call
+        function = getattr(functions, name, None)
+        if function is None:
+            raise Exception(f"Could not find function {name}.")
+        return function
 
     def visit_MOp(self, mop, **kwargs):
         """Fetch the operand and alter it."""
 
-        if mop.operator == "⍨":
-            func = self.visit(mop.child, **{**kwargs, **{"valence": 2}})
-            if kwargs["valence"] == 1:
-                return lambda omega, **_: func(alpha=omega, omega=omega)
-            elif kwargs["valence"] == 2:
-                return lambda omega, alpha: func(alpha=alpha, omega=omega)
-        else:
-            raise SyntaxError(f"Unknown monadic operator {mop.operator}.")
+        aalpha = self.visit(mop.child, **kwargs)
+        name = mop.token.type.lower()
+        operator = getattr(moperators, name, None)
+        if operator is None:
+            raise Exception(f"Could not find monadic operator {name}.")
+        return operator(aalpha=aalpha)
 
     def visit_DOp(self, dop, **kwargs):
         """Fetch the operands and alter them as needed."""
 
-        left = self.visit(dop.left, **kwargs)
-
-        if dop.operator == "∘":
-            if kwargs["valence"] == 1:
-                right = self.visit(dop.right, **kwargs)
-                return lambda omega, **_: left(omega=right(omega=omega))
-            elif kwargs["valence"] == 2:
-                right = self.visit(dop.right, **{**kwargs, **{"valence": 1}})
-                return lambda omega, alpha: left(alpha=alpha, omega=right(omega=omega))
+        oomega = self.visit(dop.right, **kwargs)
+        aalpha = self.visit(dop.left, **kwargs)
+        name = dop.token.type.lower()
+        operator = getattr(doperators, name, None)
+        if operator is None:
+            raise Exception(f"Could not find dyadic operator {name}.")
+        return operator(aalpha=aalpha, oomega=oomega)
 
     def interpret(self):
         """Interpret the APL code the parser was given."""
