@@ -55,6 +55,7 @@ class Token:
     GREATEREQ = "GREATEREQ"
     GREATER = "GREATER"
     NEQ = "NEQ"
+    WITHOUT = "WITHOUT"
     # Operators
     COMMUTE = "COMMUTE"
     DIAERESIS = "DIAERESIS"
@@ -71,7 +72,7 @@ class Token:
     # Helpful lists of token types.
     FUNCTIONS = [
         PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA,
-        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ,    
+        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ, WITHOUT,
     ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
     DYADIC_OPS = [JOT, OVER]
@@ -94,6 +95,7 @@ class Token:
         "≥": GREATEREQ,
         ">": GREATER,
         "≠": NEQ,
+        "~": WITHOUT,
         "⍨": COMMUTE,
         "¨": DIAERESIS,
         "∘": JOT,

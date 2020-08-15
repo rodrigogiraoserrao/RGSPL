@@ -258,6 +258,47 @@ def neq(*, alpha=None, omega):
     else:
         return _neq(alpha=alpha, omega=omega)
 
+@pervade
+def _not(*, alpha=None, omega):
+    """Define monadic not.
+
+    Monadic case:
+        ~ 1 0 1 0 0 1 0 0
+    0 1 0 1 1 0 1 1
+    """
+
+    return int(not omega)
+
+def _without(*, alpha=None, omega):
+    """Define dyadic without.
+
+    Dyadic case:
+        3 1 4 1 5 ~ 1 5
+    3 4
+    """
+
+    if not isinstance(omega, list):
+        omega = [omega]
+    if not isinstance(alpha, list):
+        alpha = [alpha]
+    return [a for a in alpha if a not in omega]
+
+def without(*, alpha=None, omega):
+    """Define monadic not and dyadic without.
+
+    Monadic case:
+        ~ 1 0 1 0 0 1 0 0
+    0 1 0 1 1 0 1 1
+    Dyadic case:
+        3 1 4 1 5 ~ 1 5
+    3 4
+    """
+
+    if alpha is None:
+        return _not(alpha=alpha, omega=omega)
+    else:
+        return _without(alpha=alpha, omega=omega)
+
 def _nested_prepend(value, array):
     """Takes a value and prepends it to every sublist of the array."""
 
