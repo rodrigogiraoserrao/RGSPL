@@ -166,13 +166,105 @@ def left_tack(*, alpha=None, omega):
 
     return alpha if alpha is not None else omega
 
-def nested_prepend(value, array):
+@pervade
+def less(*, alpha=None, omega):
+    """Define dyadic comparison function less than.
+
+    Dyadic case:
+        3 < 2 3 4
+    0 0 1
+    """
+
+    return int(alpha < omega)
+
+@pervade
+def lesseq(*, alpha=None, omega):
+    """Define dyadic comparison function less than or equal to.
+
+    Dyadic case:
+        3 ≤ 2 3 4
+    0 1 1
+    """
+
+    return int(alpha <= omega)
+
+@pervade
+def eq(*, alpha=None, omega):
+    """Define dyadic comparison function equal to.
+
+    Dyadic case:
+        3 = 2 3 4
+    0 1 0
+    """
+
+    return int(alpha == omega)
+
+@pervade
+def greatereq(*, alpha=None, omega):
+    """Define dyadic comparison function greater than or equal to.
+
+    Dyadic case:
+        3 ≥ 2 3 4
+    1 1 0
+    """
+
+    return int(alpha >= omega)
+
+@pervade
+def greater(*, alpha=None, omega):
+    """Define dyadic comparison function greater than.
+
+    Dyadic case:
+        3 > 2 3 4
+    1 0 0
+    """
+
+    return int(alpha > omega)
+
+@pervade
+def _neq(*, alpha=None, omega):
+    """Define dyadic comparison function not equal to.
+
+    Dyadic case:
+        3 ≠ 2 3 4
+    1 0 1
+    """
+
+    return int(alpha != omega)
+
+def _unique_mask(*, alpha=None, omega):
+    """Define monadic unique mask.
+
+    Monadic case:
+        ≠ 1 1 2 2 3 3 1
+    1 0 1 0 1 0 0
+    """
+
+    return [int(omega[i] not in omega[:i]) for i in range(len(omega))]
+
+def neq(*, alpha=None, omega):
+    """Define monadic unique mask and dyadic not equal to.
+
+    Monadic case:
+        ≠ 1 1 2 2 3 3 1
+    1 0 1 0 1 0 0
+    Dyadic case:
+        3 ≠ 2 3 4
+    1 0 1
+    """
+
+    if alpha is None:
+        return _unique_mask(alpha=alpha, omega=omega)
+    else:
+        return _neq(alpha=alpha, omega=omega)
+
+def _nested_prepend(value, array):
     """Takes a value and prepends it to every sublist of the array."""
 
     if isinstance(array, list) and not isinstance(array[0], list):
         return [value] + array
     else:
-        return [nested_prepend(value, sub) for sub in array]
+        return [_nested_prepend(value, sub) for sub in array]
 
 def iota(*, alpha=None, omega):
     """Define monadic index generator and dyadic index of.
@@ -203,6 +295,6 @@ def iota(*, alpha=None, omega):
             return [[[i, j] for j in range(omega[1])] for i in range(omega[0])]
         elif isinstance(omega, list) and len(omega) > 2:
             ret = iota(alpha=None, omega=omega[1:])
-            return [nested_prepend(i, ret) for i in range(omega[0])]
+            return [_nested_prepend(i, ret) for i in range(omega[0])]
         else:
             raise TypeError(f"Cannot generate indices from {type(omega)}.")
