@@ -49,10 +49,17 @@ class Token:
     RIGHT_TACK = "RIGHT_TACK"
     LEFT_TACK = "LEFT_TACK"
     IOTA = "IOTA"
+    LESS = "LESS"
+    LESSEQ = "LESSEQ"
+    EQ = "EQ"
+    GREATEREQ = "GREATEREQ"
+    GREATER = "GREATER"
+    NEQ = "NEQ"
     # Operators
     COMMUTE = "COMMUTE"
     DIAERESIS = "DIAERESIS"
     JOT = "JOT"
+    OVER = "OVER"
     # Misc
     DIAMOND = "DIAMOND"
     NEGATE = "NEGATE"
@@ -62,9 +69,12 @@ class Token:
     EOF = "EOF"
 
     # Helpful lists of token types.
-    FUNCTIONS = [PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA]
+    FUNCTIONS = [
+        PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA,
+        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ,    
+    ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
-    DYADIC_OPS = [JOT]
+    DYADIC_OPS = [JOT, OVER]
 
     # What You See Is What You Get characters that correspond to tokens.
     # The mapping from characteres to token types.
@@ -78,9 +88,16 @@ class Token:
         "⊢": RIGHT_TACK,
         "⊣": LEFT_TACK,
         "⍳": IOTA,
+        "<": LESS,
+        "≤": LESSEQ,
+        "=": EQ,
+        "≥": GREATEREQ,
+        ">": GREATER,
+        "≠": NEQ,
         "⍨": COMMUTE,
         "¨": DIAERESIS,
         "∘": JOT,
+        "⍥": OVER,
         "←": ASSIGNMENT,
         "(": LPARENS,
         ")": RPARENS,
@@ -521,13 +538,13 @@ class Parser:
 
 class NodeVisitor:
     """Base class for the node visitor pattern."""
-    def visit(self, node, **kwargs):
+    def visit(self, node):
         """Dispatches the visit call to the appropriate function."""
         method_name = f"visit_{type(node).__name__}"
         visitor = getattr(self, method_name, self.generic_visit)
-        return visitor(node, **kwargs)
+        return visitor(node)
 
-    def generic_visit(self, node, **kwargs):
+    def generic_visit(self, node):
         """Default method for unknown nodes."""
         raise Exception(f"No visit method for {type(node).__name__}")
 
@@ -538,48 +555,46 @@ class Interpreter(NodeVisitor):
         self.parser = parser
         self.var_lookup = {}
 
-    def visit_S(self, scalar, **__):
+    def visit_S(self, scalar):
         """Returns the value of a scalar."""
         return scalar.value
 
-    def visit_A(self, array, **__):
+    def visit_A(self, array):
         """Returns the value of an array."""
         return [self.visit(child) for child in array.children]
 
-    def visit_Var(self, var, **__):
+    def visit_Var(self, var):
         """Tries to fetch the value of a variable."""
         return self.var_lookup[var.name]
 
-    def visit_Statements(self, statements, **__):
+    def visit_Statements(self, statements):
         """Visits each statement in order."""
         return [self.visit(child) for child in statements.children[::-1]][-1]
 
-    def visit_Assignment(self, assignment, **kwargs):
+    def visit_Assignment(self, assignment):
         """Assigns a value to a variable."""
 
-        value = self.visit(assignment.value, **kwargs)
+        value = self.visit(assignment.value)
         varname = assignment.varname.name
         self.var_lookup[varname] = value
         return value
 
-    def visit_Monad(self, monad, **kwargs):
+    def visit_Monad(self, monad):
         """Evaluate the function on its only argument."""
 
-        kwargs["valence"] = 1
-        function = self.visit(monad.function, **kwargs)
+        function = self.visit(monad.function)
         omega = self.visit(monad.omega)
         return function(omega=omega)
 
-    def visit_Dyad(self, dyad, **kwargs):
+    def visit_Dyad(self, dyad):
         """Evaluate a dyad on both its arguments."""
 
-        kwargs["valence"] = 2
-        function = self.visit(dyad.function, **kwargs)
+        function = self.visit(dyad.function)
         omega = self.visit(dyad.omega)
         alpha = self.visit(dyad.alpha)
         return function(alpha=alpha, omega=omega)
 
-    def visit_F(self, func, **_):
+    def visit_F(self, func):
         """Fetch the callable function."""
 
         name = func.token.type.lower()
@@ -588,21 +603,21 @@ class Interpreter(NodeVisitor):
             raise Exception(f"Could not find function {name}.")
         return function
 
-    def visit_MOp(self, mop, **kwargs):
+    def visit_MOp(self, mop):
         """Fetch the operand and alter it."""
 
-        aalpha = self.visit(mop.child, **kwargs)
+        aalpha = self.visit(mop.child)
         name = mop.token.type.lower()
         operator = getattr(moperators, name, None)
         if operator is None:
             raise Exception(f"Could not find monadic operator {name}.")
         return operator(aalpha=aalpha)
 
-    def visit_DOp(self, dop, **kwargs):
+    def visit_DOp(self, dop):
         """Fetch the operands and alter them as needed."""
 
-        oomega = self.visit(dop.right, **kwargs)
-        aalpha = self.visit(dop.left, **kwargs)
+        oomega = self.visit(dop.right)
+        aalpha = self.visit(dop.left)
         name = dop.token.type.lower()
         operator = getattr(doperators, name, None)
         if operator is None:
