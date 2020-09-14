@@ -1,10 +1,10 @@
 """
 Implement a subset of the APL programming language.
 
-Supports the monadic/dyadic functions +-×÷⌈⌊⊢⊣⍳ ;
+Supports the monadic/dyadic functions +-×÷⌈⌊⊢⊣⍳<≤=≥>≠~ ;
 Supports (negative) integers/floats/complex numbers and vectors of those ;
-Supports the monadic operator ⍨ ;
-Supports the dyadic operator ∘ ;
+Supports the monadic operators ⍨ and ¨ ;
+Supports the dyadic operators ∘ (only functions as operands) and ⍥ ;
 Supports parenthesized expressions ;
 Supports multiple expressions separated by ⋄ ;
 Supports comments with ⍝ ;
