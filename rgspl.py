@@ -15,12 +15,13 @@ This is the grammar supported:
     statement_list ::= (statement "⋄")* statement
     statement      ::= ( ID "←" | array function | function )* array
     function       ::= function mop | function dop f | f
-    dop            ::= "∘"
+    dop            ::= "∘" | "⍥"
     mop            ::= "⍨" | "¨"
     f              ::= "+" | "-" | "×" | "÷" | "⌈" | "⌊" |
-                     | "⊢" | "⊣" | "⍳" | LPARENS function RPARENS
-    array          ::= scalar | ( LPARENS statement RPARENS | scalar )+
-    scalar         ::= INTEGER | FLOAT | ID
+                     | "⊢" | "⊣" | "⍳" | "<" | "≤" | "=" |
+                     | "≥" | ">" | "≠" | "~" | LPARENS function RPARENS
+    vector         ::= vector* ( scalar | ( LPARENS statement RPARENS ) )
+    scalar         ::= INTEGER | FLOAT | COMPLEX | ID
 """
 # pylint: disable=invalid-name
 
@@ -427,7 +428,7 @@ class Parser:
         self.debug(f"Parsing statement from {self.tokens[:self.pos+1]}")
 
         relevant_types = [Token.ASSIGNMENT, Token.RPARENS] + Token.FUNCTIONS + Token.MONADIC_OPS
-        statement = self.parse_array()
+        statement = self.parse_vector()
         while self.token_at.type in relevant_types:
             if self.token_at.type == Token.ASSIGNMENT:
                 self.eat(Token.ASSIGNMENT)
@@ -436,17 +437,17 @@ class Parser:
             else:
                 function = self.parse_function()
                 if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.ID]:
-                    array = self.parse_array()
+                    array = self.parse_vector()
                     statement = Dyad(function, array, statement)
                 else:
                     statement = Monad(function, statement)
 
         return statement
 
-    def parse_array(self):
-        """Parses an array composed of possibly several simple scalars."""
+    def parse_vector(self):
+        """Parses a vector composed of possibly several simple scalars."""
 
-        self.debug(f"Parsing array from {self.tokens[:self.pos+1]}")
+        self.debug(f"Parsing vector from {self.tokens[:self.pos+1]}")
 
         nodes = []
         array_tokens = [Token.INTEGER, Token.FLOAT, Token.COMPLEX, Token.ID]
@@ -462,7 +463,7 @@ class Parser:
                 nodes.append(self.parse_scalar())
         nodes = nodes[::-1]
         if not nodes:
-            self.error("Failed to parse scalars inside an array.")
+            self.error("Failed to parse scalars inside a vector.")
         elif len(nodes) == 1:
             node = nodes[0]
         else:
