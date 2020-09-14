@@ -164,23 +164,23 @@ class Tokenizer:
     def get_real_number(self):
         """Parses a real number from the source code."""
 
-        parts = []
         # Check for a negation of the number.
         if self.current_char == "¯":
             self.advance()
-            parts.append("-")
-        parts.append(self.get_integer())
+            int_ = "-" + self.get_integer()
+        else:
+            int_ = self.get_integer()
         # Check if we have a decimal number here.
         if self.current_char == ".":
             self.advance()
-            parts.append(".")
-            parts.append(self.get_integer())
-
-        num = "".join(parts)
-        if "." in num:
-            return float(num)
+            dec_ = self.get_integer()
         else:
-            return int(num)
+            dec_ = "0"
+
+        if int(dec_):
+            return float(f"{int_}.{dec_}")
+        else:
+            return int(int_)
 
     def get_number_token(self):
         """Parses a number token from the source code."""
@@ -189,6 +189,10 @@ class Tokenizer:
         if self.current_char == "J":
             self.advance()
             im = self.get_real_number()
+        else:
+            im = 0
+
+        if im:
             tok = Token(Token.COMPLEX, complex(real, im))
         elif isinstance(real, int):
             tok = Token(Token.INTEGER, real)
@@ -630,7 +634,6 @@ class Interpreter(NodeVisitor):
     def interpret(self):
         """Interpret the APL code the parser was given."""
         tree = self.parser.parse()
-        print(tree)
         return self.visit(tree)
 
 if __name__ == "__main__":
