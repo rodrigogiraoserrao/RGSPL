@@ -8,21 +8,46 @@ cf. https://www.jsoftware.com/papers/eem/complexfloor.htm for complex floor.
 import functools
 import math
 
+from arraymodel import APLArray
+
 def pervade(func):
     """Decorator to define function pervasion into simple scalars."""
 
     @functools.wraps(func)
     def pervasive_func(*, alpha=None, omega):
-        if not isinstance(omega, list) and not isinstance(alpha, list):
-            return func(alpha=alpha, omega=omega)
-        elif isinstance(omega, list) and isinstance(alpha, list):
-            if len(omega) != len(alpha):
-                raise IndexError("Cannot pervade with mismatched lengths.")
-            return [pervasive_func(omega=w, alpha=a) for a, w in zip(alpha, omega)]
-        elif isinstance(omega, list):
-            return [pervasive_func(alpha=alpha, omega=w) for w in omega]
+        # Start by checking if alpha is None
+        if alpha is None:
+            if omega.shape:
+                data = [
+                    pervasive_func(omega=w, alpha=alpha) for w in omega.data
+                ]
+            elif isinstance(omega.data, APLArray):
+                data = pervasive_func(omega=omega.data, alpha=alpha)
+            else:
+                data = func(omega=omega.data, alpha=alpha)
+        # Dyadic case from now on
+        elif alpha.shape and omega.shape:
+            if alpha.shape != omega.shape:
+                raise IndexError("Mismatched left and right shapes.")
+            data = [
+                pervasive_func(omega=w, alpha=a) for w, a in zip(omega.data, alpha.data)
+            ]
+        elif alpha.shape:
+            w = omega.data if isinstance(omega.data, APLArray) else omega
+            data = [pervasive_func(omega=w, alpha=a) for a in alpha.data]
+        elif omega.shape:
+            a = alpha.data if isinstance(alpha.data, APLArray) else alpha
+            data = [pervasive_func(omega=w, alpha=a) for w in omega.data]
+        # Both alpha and omega are scalars
+        elif not isinstance(alpha.data, APLArray) and not isinstance(omega.data, APLArray):
+            data = func(omega=omega.data, alpha=alpha.data)
         else:
-            return [pervasive_func(alpha=a, omega=omega) for a in alpha]
+            a = alpha.data if isinstance(alpha.data, APLArray) else alpha
+            w = omega.data if isinstance(omega.data, APLArray) else omega
+            data = pervasive_func(omega=w, alpha=a)
+
+        shape = getattr(alpha, "shape", None) or omega.shape
+        return APLArray(shape, data)
 
     return pervasive_func
 
@@ -240,7 +265,16 @@ def _unique_mask(*, alpha=None, omega):
     1 0 1 0 1 0 0
     """
 
-    return [int(omega[i] not in omega[:i]) for i in range(len(omega))]
+    if not omega.shape:
+        return APLArray([], 1)
+
+    # find how many elements each major cell has and split the data in major cells
+    mcl = int(math.prod(omega.shape)/omega.shape[0])
+    major_cells = [omega.data[i*mcl:(i+1)*mcl] for i in range(omega.shape[0])]
+    return APLArray(
+        [omega.shape[0]],
+        [int(major_cell not in major_cells[:i]) for i, major_cell in enumerate(major_cells)]
+    )
 
 def neq(*, alpha=None, omega):
     """Define monadic unique mask and dyadic not equal to.
@@ -269,6 +303,26 @@ def _not(*, alpha=None, omega):
 
     return int(not omega)
 
+def lshoe(*, alpha=None, omega):
+    """Define monadic and dyadic left shoe.
+
+    Monadic case:
+        ⊂ 1 2 3
+    (1 2 3)
+        ⊂ 1
+    1
+    Dyadic case:
+        NotImplemented
+    """
+
+    if alpha is None:
+        if (not omega.shape) and (not isinstance(omega.data, APLArray)):
+            return omega
+        else:
+            return APLArray([], omega)
+    else:
+        raise NotImplementedError("Partitioned Enclose not implemented yet.")
+
 def _without(*, alpha=None, omega):
     """Define dyadic without.
 
@@ -277,11 +331,19 @@ def _without(*, alpha=None, omega):
     3 4
     """
 
-    if not isinstance(omega, list):
-        omega = [omega]
-    if not isinstance(alpha, list):
-        alpha = [alpha]
-    return [a for a in alpha if a not in omega]
+    if (r := len(alpha.shape)) > 1:
+        raise ValueError(f"Cannot use Without with array of rank {r}")
+
+    if omega.shape == []:
+        haystack = [omega.data] if isinstance(omega.data, APLArray) else [omega]
+    else:
+        haystack = omega.data
+    if alpha.shape == []:
+        needles = [alpha.data] if isinstance(alpha.data, APLArray) else [alpha]
+    else:
+        needles = alpha.data
+    newdata = [needle for needle in needles if needle not in haystack]
+    return APLArray([len(newdata)], newdata)
 
 def without(*, alpha=None, omega):
     """Define monadic not and dyadic without.
@@ -299,13 +361,43 @@ def without(*, alpha=None, omega):
     else:
         return _without(alpha=alpha, omega=omega)
 
-def _nested_prepend(value, array):
-    """Takes a value and prepends it to every sublist of the array."""
+def _decode(radices, n):
+    """Decode n into the repeated radices given.
 
-    if isinstance(array, list) and not isinstance(array[0], list):
-        return [value] + array
-    else:
-        return [_nested_prepend(value, sub) for sub in array]
+    Dyadic case (10000 seconds is 2h 46min 40s):
+        24 60 60 ⊤ 10000
+    2 46 40
+    """
+
+    bs = []
+    for m in radices[::-1]:
+        n, b = divmod(n, m)
+        bs.append(b)
+    return bs[::-1]
+
+def _index_generator(*, alpha=None, omega):
+    """Define monadic Index Generator.
+
+    Monadic case:
+        ⍳ 4
+    0 1 2 3
+    """
+
+    d = omega.data
+    if isinstance(d, int):
+        if d < 0:
+            raise ValueError("Cannot generate indices with negative number.")
+        return APLArray([d], list(range(d)))
+    elif isinstance(d, list):
+        shape = [sub.data for sub in d]
+        if any(not isinstance(dim, int) for dim in shape):
+            raise TypeError(f"Cannot generate indices with non-integers {shape}")
+        decoded = map(lambda n: _decode(shape, n), range(math.prod(shape)))
+        if (l := len(shape)) == 1:
+            data = [APLArray([], d[0]) for d in decoded]
+        else:
+            data = [APLArray([l], d) for d in decoded]
+        return APLArray(shape, data)
 
 def iota(*, alpha=None, omega):
     """Define monadic index generator and dyadic index of.
@@ -318,24 +410,7 @@ def iota(*, alpha=None, omega):
     2
     """
 
-    if alpha is not None:
-        if not isinstance(alpha, list):
-            raise TypeError(
-                f"Cannot find index of elements in {type(alpha)} left argument."
-            )
-        if not isinstance(omega, list):
-            return alpha.index(omega) if omega in alpha else len(alpha)
-        else:
-            return [alpha.index(w) if w in alpha else len(alpha) for w in omega]
+    if alpha is None:
+        return _index_generator(alpha=alpha, omega=omega)
     else:
-        if isinstance(omega, int):
-            return list(range(omega))
-        elif isinstance(omega, list) and len(omega) == 1:
-            return list(range(omega[0]))
-        elif isinstance(omega, list) and len(omega) == 2:
-            return [[[i, j] for j in range(omega[1])] for i in range(omega[0])]
-        elif isinstance(omega, list) and len(omega) > 2:
-            ret = iota(alpha=None, omega=omega[1:])
-            return [_nested_prepend(i, ret) for i in range(omega[0])]
-        else:
-            raise TypeError(f"Cannot generate indices from {type(omega)}.")
+        raise NotImplementedError("Index Of not implemented yet.")

@@ -1,7 +1,7 @@
 """
 Implement a subset of the APL programming language.
 
-Supports the monadic/dyadic functions +-×÷⌈⌊⊢⊣⍳<≤=≥>≠~ ;
+Supports the monadic/dyadic functions +-×÷⌈⌊⊢⊣⍳<≤=≥>≠~⊂ ;
 Supports (negative) integers/floats/complex numbers and vectors of those ;
 Supports the monadic operators ⍨ and ¨ ;
 Supports the dyadic operators ∘ (only functions as operands) and ⍥ ;
@@ -13,13 +13,13 @@ This is the grammar supported:
 
     program        ::= EOF statement_list
     statement_list ::= (statement "⋄")* statement
-    statement      ::= ( ID "←" | array function | function )* array
+    statement      ::= ( ID "←" | vector function | function )* vector
     function       ::= function mop | function dop f | f
     dop            ::= "∘" | "⍥"
     mop            ::= "⍨" | "¨"
     f              ::= "+" | "-" | "×" | "÷" | "⌈" | "⌊" |
                      | "⊢" | "⊣" | "⍳" | "<" | "≤" | "=" |
-                     | "≥" | ">" | "≠" | "~" | LPARENS function RPARENS
+                     | "≥" | ">" | "≠" | "~" | "⊂" | LPARENS function RPARENS
     vector         ::= vector* ( scalar | ( LPARENS statement RPARENS ) )
     scalar         ::= INTEGER | FLOAT | COMPLEX | ID
 """
@@ -31,6 +31,7 @@ from typing import List
 import doperators
 import functions
 import moperators
+from arraymodel import APLArray
 
 class Token:
     """Represents a token parsed from the source code."""
@@ -57,6 +58,7 @@ class Token:
     GREATER = "GREATER"
     NEQ = "NEQ"
     WITHOUT = "WITHOUT"
+    LSHOE = "LSHOE"
     # Operators
     COMMUTE = "COMMUTE"
     DIAERESIS = "DIAERESIS"
@@ -73,7 +75,7 @@ class Token:
     # Helpful lists of token types.
     FUNCTIONS = [
         PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA,
-        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ, WITHOUT,
+        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ, WITHOUT, LSHOE,
     ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
     DYADIC_OPS = [JOT, OVER]
@@ -97,6 +99,7 @@ class Token:
         ">": GREATER,
         "≠": NEQ,
         "~": WITHOUT,
+        "⊂": LSHOE,
         "⍨": COMMUTE,
         "¨": DIAERESIS,
         "∘": JOT,
@@ -271,13 +274,13 @@ class S(ASTNode):
         return f"S({self.value})"
 
 
-class A(ASTNode):
-    """Node for an array of simple scalars, like 3 ¯4 5.6"""
+class V(ASTNode):
+    """Node for a stranded vector of simple scalars, like 3 ¯4 5.6"""
     def __init__(self, children: List[ASTNode]):
         self.children = children
 
     def __str__(self):
-        return f"A({self.children})"
+        return f"V({self.children})"
 
 
 class MOp(ASTNode):
@@ -471,7 +474,7 @@ class Parser:
         elif len(nodes) == 1:
             node = nodes[0]
         else:
-            node = A(nodes)
+            node = V(nodes)
         return node
 
     def parse_scalar(self):
@@ -564,11 +567,12 @@ class Interpreter(NodeVisitor):
 
     def visit_S(self, scalar):
         """Returns the value of a scalar."""
-        return scalar.value
+        return APLArray([], scalar.value)
 
-    def visit_A(self, array):
+    def visit_V(self, array):
         """Returns the value of an array."""
-        return [self.visit(child) for child in array.children]
+        scalars = [self.visit(child) for child in array.children]
+        return APLArray([len(scalars)], scalars)
 
     def visit_Var(self, var):
         """Tries to fetch the value of a variable."""
