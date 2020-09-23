@@ -385,19 +385,21 @@ def _index_generator(*, alpha=None, omega):
 
     d = omega.data
     if isinstance(d, int):
-        if d < 0:
-            raise ValueError("Cannot generate indices with negative number.")
-        return APLArray([d], list(range(d)))
+        shape = [d]
     elif isinstance(d, list):
         shape = [sub.data for sub in d]
-        if any(not isinstance(dim, int) for dim in shape):
-            raise TypeError(f"Cannot generate indices with non-integers {shape}")
-        decoded = map(lambda n: _decode(shape, n), range(math.prod(shape)))
-        if (l := len(shape)) == 1:
-            data = [APLArray([], d[0]) for d in decoded]
-        else:
-            data = [APLArray([l], d) for d in decoded]
-        return APLArray(shape, data)
+
+    if any(not isinstance(dim, int) for dim in shape):
+        raise TypeError(f"Cannot generate indices with non-integers {shape}")
+    elif any(dim < 0 for dim in shape):
+        raise ValueError("Cannot generate indices with negative integers")
+
+    decoded = map(lambda n: _decode(shape, n), range(math.prod(shape)))
+    if (l := len(shape)) == 1:
+        data = [APLArray([], d[0]) for d in decoded]
+    else:
+        data = [APLArray([l], d) for d in decoded]
+    return APLArray(shape, data)
 
 def iota(*, alpha=None, omega):
     """Define monadic index generator and dyadic index of.
