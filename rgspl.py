@@ -108,6 +108,7 @@ class Token:
         "(": LPARENS,
         ")": RPARENS,
         "⋄": DIAMOND,
+        "\n": DIAMOND,
     }
 
     ID_CHARS = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -144,7 +145,7 @@ class Tokenizer:
     def skip_whitespace(self):
         """Skips all the whitespace in the source code."""
 
-        while self.current_char and self.current_char in " \t\n":
+        while self.current_char and self.current_char in " \t":
             self.advance()
 
     def skip_comment(self):
@@ -154,7 +155,6 @@ class Tokenizer:
             return
         while self.current_char and self.current_char != "\n":
             self.advance()
-        self.advance()
 
     def get_integer(self):
         """Parses an integer from the source code."""
@@ -679,7 +679,7 @@ if __name__ == "__main__":
     elif args.code:
         for expr in args.code:
             print(f"{expr} :")
-            print(Parser(Tokenizer(expr), debug=True).parse())
+            print(Interpreter(Parser(Tokenizer(expr), debug=True)).interpret())
 
     elif args.file:
         print("Not implemented yet...")
