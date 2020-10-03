@@ -38,7 +38,7 @@ def pervade(func):
         elif omega.shape:
             a = alpha.data if isinstance(alpha.data, APLArray) else alpha
             data = [pervasive_func(omega=w, alpha=a) for w in omega.data]
-        # Both alpha and omega are scalars
+        # Both alpha and omega are simple scalars
         elif not isinstance(alpha.data, APLArray) and not isinstance(omega.data, APLArray):
             data = func(omega=omega.data, alpha=alpha.data)
         else:
@@ -163,7 +163,6 @@ def floor(*, alpha=None, omega):
     else:
         return min(alpha, omega)
 
-@pervade
 def right_tack(*, alpha=None, omega):
     """Define monadic same and dyadic right.
 
@@ -177,7 +176,6 @@ def right_tack(*, alpha=None, omega):
 
     return omega
 
-@pervade
 def left_tack(*, alpha=None, omega):
     """Define monadic same and dyadic left.
 
