@@ -290,17 +290,6 @@ def neq(*, alpha=None, omega):
     else:
         return _neq(alpha=alpha, omega=omega)
 
-@pervade
-def _not(*, alpha=None, omega):
-    """Define monadic not.
-
-    Monadic case:
-        ~ 1 0 1 0 0 1 0 0
-    0 1 0 1 1 0 1 1
-    """
-
-    return int(not omega)
-
 def lshoe(*, alpha=None, omega):
     """Define monadic and dyadic left shoe.
 
@@ -320,6 +309,17 @@ def lshoe(*, alpha=None, omega):
             return APLArray([], omega)
     else:
         raise NotImplementedError("Partitioned Enclose not implemented yet.")
+
+@pervade
+def _not(*, alpha=None, omega):
+    """Define monadic not.
+
+    Monadic case:
+        ~ 1 0 1 0 0 1 0 0
+    0 1 0 1 1 0 1 1
+    """
+
+    return int(not omega)
 
 def _without(*, alpha=None, omega):
     """Define dyadic without.
@@ -359,8 +359,8 @@ def without(*, alpha=None, omega):
     else:
         return _without(alpha=alpha, omega=omega)
 
-def _decode(radices, n):
-    """Decode n into the repeated radices given.
+def _encode(radices, n):
+    """Encode n into the radices given.
 
     Dyadic case (10000 seconds is 2h 46min 40s):
         24 60 60 ⊤ 10000
@@ -392,7 +392,7 @@ def _index_generator(*, alpha=None, omega):
     elif any(dim < 0 for dim in shape):
         raise ValueError("Cannot generate indices with negative integers")
 
-    decoded = map(lambda n: _decode(shape, n), range(math.prod(shape)))
+    decoded = map(lambda n: _encode(shape, n), range(math.prod(shape)))
     if (l := len(shape)) == 1:
         data = [APLArray([], d[0]) for d in decoded]
     else:
