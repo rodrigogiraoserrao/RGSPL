@@ -386,11 +386,16 @@ def _index_generator(*, alpha=None, omega):
         shape = [d]
     elif isinstance(d, list):
         shape = [sub.data for sub in d]
+    else:
+        raise TypeError("Index generator expects an integer or vector of integers.")
+
+    if (r := len(omega.shape)) > 1:
+        raise ValueError(f"Index generator did not expect array of rank {r}.")
 
     if any(not isinstance(dim, int) for dim in shape):
-        raise TypeError(f"Cannot generate indices with non-integers {shape}")
+        raise TypeError(f"Cannot generate indices with non-integers {shape}.")
     elif any(dim < 0 for dim in shape):
-        raise ValueError("Cannot generate indices with negative integers")
+        raise ValueError("Cannot generate indices with negative integers.")
 
     decoded = map(lambda n: _encode(shape, n), range(math.prod(shape)))
     if (l := len(shape)) == 1:
