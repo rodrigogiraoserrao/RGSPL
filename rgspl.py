@@ -402,7 +402,7 @@ class Parser:
         return None if peek_at < 0 else self.tokens[peek_at].type
 
     def peek_beyond_parens(self):
-        """Returns the next token type that is not a parenthesis."""
+        """Returns the next token type that is not a right parenthesis."""
         peek_at = self.pos - 1
         while peek_at >= 0 and self.tokens[peek_at].type == Token.RPARENS:
             peek_at -= 1
@@ -498,7 +498,7 @@ class Parser:
         return scalar
 
     def parse_function(self):
-        """Parses a function possibly monadically operated upon."""
+        """Parses a (derived) function."""
 
         self.debug(f"Parsing function from {self.tokens[:self.pos+1]}")
 
