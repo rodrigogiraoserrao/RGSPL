@@ -2,6 +2,10 @@
 Module that implements APL's monadic operators.
 """
 
+import math
+
+from arraymodel import APLArray
+
 def commute(*, aalpha):
     """Define the monadic commute ⍨ operator.
 
@@ -25,24 +29,32 @@ def diaeresis(*, aalpha):
         f¨ x y z
     (f x) (f y) (f z)
     Dyadic case:
-        ⍺ f x y z
+        ⍺ f¨ x y z
     (⍺ f x) (⍺ f y) (⍺ f z)
-        x y z f ⍵
+        x y z f¨ ⍵
     (x f ⍵) (y f ⍵) (z f ⍵)
-        a b c f x y z
+        a b c f¨ x y z
     (a f x) (b f y) (c f z)
     """
 
     def derived(*, alpha=None, omega):
-        if not isinstance(alpha, list) and not isinstance(omega, list):
-            return aalpha(alpha=alpha, omega=omega)
-        elif isinstance(alpha, list) and isinstance(omega, list):
-            if len(alpha) != len(omega):
-                raise IndexError(f"Left and right arguments must have the same length.")
-            else:
-                return [aalpha(alpha=a, omega=w) for a, w in zip(alpha, omega)]
-        elif isinstance(omega, list):
-            return [aalpha(alpha=alpha, omega=w) for w in omega]
+        if alpha:
+            if alpha.shape and omega.shape:
+                if len(alpha.shape) != len(omega.shape):
+                    raise ValueError("Mismatched ranks of left and right arguments.")
+                elif alpha.shape and omega.shape and alpha.shape != omega.shape:
+                    raise IndexError("Left and right arguments must have the same dimensions.")
+            shape = alpha.shape or omega.shape
         else:
-            return [aalpha(alpha=a, omega=omega) for a in alpha]
+            shape = omega.shape
+        
+        l = math.prod(shape)
+        omegas = omega.data if omega.shape else l*[omega]
+        alphas = l*[None] if alpha is None else (
+            alpha.data if alpha.shape else l*[alpha]
+        )
+        data = [aalpha(omega=o, alpha=a) for o, a in zip(omegas, alphas)]
+        if not shape:
+            data = data[0]
+        return APLArray(shape, data)
     return derived
