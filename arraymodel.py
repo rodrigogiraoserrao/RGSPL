@@ -20,14 +20,54 @@ class APLArray:
                 APLArray(self.shape[1:], self.data[i*size:(i+1)*size])
                 for i in range(self.shape[0])
             ]
-        
-    def __str__(self):
-        if isinstance(self.data, (float, int)):
-            return self._str_format_n(self.data)
-        elif isinstance(self.data, complex):
-            return f"{self._str_format_n(self.data.real)}J{self._str_format_n(self.data.imag)}"
+
+    def is_simple(self):
+        return (not self.shape) and (not isinstance(self.data, APLArray))
+
+    @staticmethod
+    def _simple_scalar_str(s):
+        if isinstance(s, complex):
+            return "J".join(map(APLArray._simple_scalar_str, [s.real, s.imag]))
+        elif int(s) == s:
+            return str(int(s))
         else:
-            return f"{self.shape} :: {' '.join(map(str, self.data))}"
+            return str(s)
+
+    def __str__(self):
+        # Print simple scalars nicely.
+        if self.is_simple():
+            return APLArray._simple_scalar_str(self.data)
+
+        # Print simple arrays next.
+        if all(d.is_simple() for d in self.data):
+            strs = list(map(str, self.data))
+            maxw = max(map(len, strs))
+            # Pad everything in array of rank 2 or more.
+            rank = len(self.shape)
+            if rank > 1:
+                strs = map(lambda s: (maxw-len(s))*" " + s, strs)
+            # We add as many newlines as dimensions we just completed.
+            cumulative_dim_sizes = [math.prod(self.shape[-i-1:]) for i in range(rank-1)]
+            string = ""
+            for i, s in enumerate(strs):
+                string += sum(i!=0 and 0 == i%l for l in cumulative_dim_sizes)*"\n"
+                string += s + " "
+            return string
+
+        # Print nested vectors next
+        if len(self.shape) == 1:
+            strs = map(str, self.data)
+            if all(d.is_simple() for d in self.data):
+                return " ".join(strs)
+            else:
+                mid = " │ ".join(strs)
+                top = "┌─"
+                for char in mid:
+                    top += "┬" if char == "│" else "─"
+                top += "─┐"
+                return top + "\n│ " + mid + " │\n└─" + top[2:-2].replace("┬", "┴") + "─┘"
+
+        return f"{self.shape} :: {' '.join(map(str, self.data))}"
 
     __repr__ = __str__
 
