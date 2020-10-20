@@ -2,19 +2,24 @@
 Module to define the array model for APL.
 """
 
+import math
+
 class APLArray:
     def __init__(self, shape, data):
         self.shape = shape
         self.data = data
 
-    @staticmethod
-    def _str_format_n(n):
-        if n < 0:
-            return f"¯{APLArray._str_format_n(-n)}"
-        if int(n) == n:
-            return str(int(n))
+    def major_cells(self):
+        if len(self.shape) == 0:
+            return [self.data]
+        elif len(self.shape) == 1:
+            return self.data
         else:
-            return str(n)
+            size = math.prod(self.shape)/self.shape[0]
+            return [
+                APLArray(self.shape[1:], self.data[i*size:(i+1)*size])
+                for i in range(self.shape[0])
+            ]
         
     def __str__(self):
         if isinstance(self.data, (float, int)):
