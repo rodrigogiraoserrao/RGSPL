@@ -419,3 +419,33 @@ def iota(*, alpha=None, omega):
         return _index_generator(alpha=alpha, omega=omega)
     else:
         raise NotImplementedError("Index Of not implemented yet.")
+
+def rho(*, alpha=None, omega):
+    """Define monadic shape and dyadic reshape.
+
+    Monadic case:
+        ⍴ ⍳2 3
+    2 3
+    Dyadic case:
+        3⍴⊂1 2
+    (1 2)(1 2)(1 2)
+    """
+
+    if alpha is None:
+        shape = [len(omega.shape)]
+        data = [APLArray([], i) for i in omega.shape]
+        return APLArray(shape, data)
+    else:
+        rank = len(alpha.shape)
+        if rank > 1:
+            raise ValueError(f"Left argument of reshape cannot have rank {rank}.")
+        
+        shape_from = alpha.data if rank == 1 else [alpha]
+        shape = [d.data for d in shape_from]
+        if not all(isinstance(i, int) for i in shape):
+            raise TypeError("Left argument of reshape expects integers.")
+        data_from = omega.data if len(omega.shape) > 0 else [omega]
+        # Extend the data roughly if needed, then truncate if needed.
+        data = data_from*(math.ceil(math.prod(shape)/len(data_from)))
+        data = data[:math.prod(shape)]
+        return APLArray(shape, data)
