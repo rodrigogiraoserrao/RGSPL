@@ -69,7 +69,7 @@ class APLArray:
             height = 0
             for i, d in enumerate(self.data):
                 # If d is a non-simple scalar, print the data instead of the scalar.
-                s = str(d.data if not d.shape and not d.is_simple() and d.data.shape else d)
+                s = str(d)
                 s_height = 1+s.count("\n")
                 height = max(height, s_height)
                 s_width = 1+(len(s)-s_height)//s_height
