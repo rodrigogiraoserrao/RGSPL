@@ -87,7 +87,7 @@ class APLArray:
             for i, m in enumerate(matrices):
                 string += sum(i!=0 and 0 == i%l for l in newline_offsets)*"\n "
                 string += m + " "
-            return string
+            return string[:-1]
 
     __repr__ = __str__
 
