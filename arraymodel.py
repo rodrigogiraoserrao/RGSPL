@@ -68,9 +68,12 @@ class APLArray:
             widths = [0 for _ in range(trailing_size)]
             height = 0
             for i, d in enumerate(self.data):
-                s = str(d)
-                height = max(height, 1+s.count("\n"))
-                widths[i%trailing_size] = max(widths[i%trailing_size], 1+(len(s)-height-1)//height)
+                # If d is a non-simple scalar, print the data instead of the scalar.
+                s = str(d.data if not d.shape and not d.is_simple() and d.data.shape else d)
+                s_height = 1+s.count("\n")
+                height = max(height, s_height)
+                s_width = 1+(len(s)-s_height)//s_height
+                widths[i%trailing_size] = max(widths[i%trailing_size], s_width)
                 strs.append(s)
 
             # Build the sub-matrices with these dimensions.
@@ -97,6 +100,9 @@ class APLArray:
             self.shape == other.shape and
             self.data == other.data
         )
+
+# Helper method to create APLArray scalars.
+S = lambda v: APLArray([], v)
 
 def _simple_scalar_str(s):
     if isinstance(s, complex):
@@ -131,7 +137,7 @@ def _frame_matrix(strs, widths, height):
 
     rows = []
     for i in range(nrows):
-        row = _block_join(" │ ", boxes[i*len(widths):(i+1)*len(widths)])
+        row = _block_join("│", boxes[i*len(widths):(i+1)*len(widths)])
         print(row.__repr__())
         row = _block_prepend(row, "│")
         row = _block_append(row, "│")
