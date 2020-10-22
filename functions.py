@@ -8,7 +8,9 @@ cf. https://www.jsoftware.com/papers/eem/complexfloor.htm for complex floor.
 import functools
 import math
 
-from arraymodel import APLArray, S
+from arraymodel import APLArray
+
+toS = lambda v: APLArray([], v)
 
 def pervade(func):
     """Decorator to define function pervasion into simple scalars."""
@@ -399,9 +401,9 @@ def _index_generator(*, alpha=None, omega):
 
     decoded = map(lambda n: _encode(shape, n), range(math.prod(shape)))
     if (l := len(shape)) == 1:
-        data = [S(d[0]) for d in decoded]
+        data = [toS(d[0]) for d in decoded]
     else:
-        data = [APLArray([l], list(map(S, d))) for d in decoded]
+        data = [APLArray([l], list(map(toS, d))) for d in decoded]
     return APLArray(shape, data)
 
 def iota(*, alpha=None, omega):
