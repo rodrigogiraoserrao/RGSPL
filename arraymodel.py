@@ -126,11 +126,6 @@ def _frame_matrix(strs, widths, height):
 
     ncols = len(widths)
     nrows = len(strs)//ncols
-
-    print(strs)
-    print(widths)
-    print(height)
-    print("@"*30)
     boxes = []
     for i, s in enumerate(strs):
         boxes.append(_box(s, widths[i%ncols], height))
@@ -138,11 +133,9 @@ def _frame_matrix(strs, widths, height):
     rows = []
     for i in range(nrows):
         row = _block_join("│", boxes[i*len(widths):(i+1)*len(widths)])
-        print(row.__repr__())
         row = _block_prepend(row, "│")
         row = _block_append(row, "│")
         rows.append(row)
-    print("#"*30)
 
     # Get a matrix reference line to build the top, intermediate and bottom lines.
     ref_line = rows[0].split("\n")[0]
@@ -197,10 +190,3 @@ def _block_append(string, val):
     return "\n".join(
         map(lambda l: l+val, string.split("\n"))
     )
-
-s = lambda v: APLArray([], v)
-m1 = APLArray([2,2],[s(1),s(2),s(3),s(4)])
-m2 = APLArray([2,3], [s(0),s(-34),s(0.001),s(complex(3,0.2)),s(0),s(0)])
-
-print(m2)
-print(APLArray([2,2],[m1,m1,m1,m2]))
