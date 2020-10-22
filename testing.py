@@ -48,7 +48,7 @@ class TestTokenizer(unittest.TestCase):
                 with self.subTest(c=c):
                     self.assertEqual(self.tok(f"{rs}J{cs}"), C(c))
 
-    def test_numeric_upgrades(self):
+    def test_numeric_promotion(self):
         """Ensure empty imaginary parts and empty decimals get promoted."""
 
         f = lambda t: lambda v: [self.eof, Token(t, v)]
@@ -69,6 +69,46 @@ class TestTokenizer(unittest.TestCase):
         self.assertEqual(self.tok("¯8.J0.0"), I(-8))
         self.assertEqual(self.tok(".125J0.0"), F(0.125))
         self.assertEqual(self.tok("¯.25J0."), F(-0.25))
+
+    def test_ids(self):
+        """Test id tokenization."""
+
+        ID = lambda v: [self.eof, Token(Token.ID, v)]
+        self.assertEqual(self.tok("bananas"), ID("bananas"))
+        self.assertEqual(self.tok("abcd"), ID("abcd"))
+        self.assertEqual(self.tok("CamelCase"), ID("CamelCase"))
+        self.assertEqual(self.tok("pascalCase"), ID("pascalCase"))
+        self.assertEqual(self.tok("using_Some_Underscores"), ID("using_Some_Underscores"))
+        self.assertEqual(self.tok("_"), ID("_"))
+        self.assertEqual(self.tok("__"), ID("__"))
+        self.assertEqual(self.tok("_varname"), ID("_varname"))
+        self.assertEqual(self.tok("var123"), ID("var123"))
+        self.assertEqual(self.tok("var123_2"), ID("var123_2"))
+        self.assertEqual(self.tok("_J3"), ID("_J3"))
+        self.assertEqual(self.tok("_1J2"), ID("_1J2"))
+        self.assertEqual(self.tok("J2"), ID("J2"))
+
+    def test_comment_skipping(self):
+        """Test if comments are skipped."""
+
+        self.assertEqual(self.tok("⍝ this is a comment"), [self.eof])
+        self.assertEqual(self.tok("⍝3J5 ¯3"), [self.eof])
+        self.assertEqual(self.tok("⍝⍝⍝ triple comment"), [self.eof])
+        self.assertEqual(self.tok("¯2 ⍝ neg 2"), [self.eof, Token(Token.INTEGER, -2)])
+        self.assertEqual(self.tok("var ⍝ some var"), [self.eof, Token(Token.ID, "var")])
+
+    def test_wysiwyg_tokens(self):
+        """Test if WYSIWYG tokens are tokenized correctly."""
+
+        for s, type_ in Token.WYSIWYG_MAPPING.items():
+            for s2, type_2 in Token.WYSIWYG_MAPPING.items():
+                code = s+s2
+                toks = [self.eof, Token(type_, s), Token(type_2, s2)]
+                with self.subTest(code=code):
+                    self.assertEqual(self.tok(code), toks)
+                code = s+" "+s2
+                with self.subTest(code=code):
+                    self.assertEqual(self.tok(code), toks)
 
 class TestScalarParsing(unittest.TestCase):
     """Test that scalars are parsed conveniently."""
