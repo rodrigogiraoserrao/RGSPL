@@ -125,6 +125,12 @@ class Token:
     def __repr__(self):
         return self.__str__()
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, Token)
+            and (self.type, self.value) == (other.type, other.value)
+        )
+
 
 class Tokenizer:
     """Class that tokenizes source code into tokens."""
@@ -164,7 +170,7 @@ class Tokenizer:
         start_idx = self.pos
         while self.current_char and self.current_char.isdigit():
             self.advance()
-        return self.code[start_idx:self.pos]
+        return self.code[start_idx:self.pos] or "0"
 
     def get_real_number(self):
         """Parses a real number from the source code."""
@@ -233,7 +239,7 @@ class Tokenizer:
         if not self.current_char:
             return Token(Token.EOF, None)
 
-        if self.current_char in "¯0123456789":
+        if self.current_char in "¯.0123456789":
             return self.get_number_token()
 
         if self.current_char in Token.ID_CHARS:
