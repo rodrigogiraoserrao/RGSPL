@@ -23,7 +23,7 @@ def run_apl_code_decorator(assert_method):
     def new_assert_method(*args, **kwargs):
         i = 0
         args = list(args) # to allow in-place modification.
-        # Run, as APL code, the first consecutive strings in the position arguments.
+        # Run, as APL code, the first consecutive strings in the positional arguments.
         while i < len(args) and isinstance(args[i], str):
             args[i] = run(args[i])
             i += 1
