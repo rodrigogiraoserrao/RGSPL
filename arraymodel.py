@@ -11,16 +11,37 @@ class APLArray:
 
     def major_cells(self):
         """Returns an array with the major cells of self (as APLArray instances)."""
-        if len(self.shape) == 0:
-            return [self.data]
-        elif len(self.shape) == 1:
-            return self.data
-        else:
-            size = math.prod(self.shape)/self.shape[0]
-            return [
-                APLArray(self.shape[1:], self.data[i*size:(i+1)*size])
-                for i in range(self.shape[0])
-            ]
+        return self.n_cells(len(self.shape)-1)
+
+    def n_cells(self, n):
+        """Returns an array with the n-cells of self (as APLArray instances).
+
+        An array of rank r has r-cells, (r-1)-cells, ..., 0-cells.
+        An n-cell is a subarray with n trailing dimensions.
+
+        The result of asking for the n-cells of an array of rank r
+        is an APLArray of rank (r-n) with shape equal to the first
+        (r-n) elements of the shape of the original array.
+        """
+
+        if n == 0:
+            return self
+
+        r = len(self.shape)
+        if n > r:
+            raise ValueError(f"Array of rank {r} does not have {n}-cells.")
+
+        if r == n:
+            return S(self)
+
+        result_shape = self.shape[:r-n]
+        cell_shape = self.shape[r-n:]
+        size = math.prod(cell_shape)
+        data = [
+            APLArray(cell_shape, self.data[i*size:(i+1)*size])
+            for i in range(math.prod(result_shape))
+        ]
+        return APLArray(result_shape, data)
 
     def is_simple(self):
         return (not self.shape) and (not isinstance(self.data, APLArray))
@@ -72,7 +93,7 @@ class APLArray:
                 s = str(d)
                 s_height = 1+s.count("\n")
                 height = max(height, s_height)
-                s_width = 1+(len(s)-s_height)//s_height
+                s_width = max(map(len, s.split("\n")))
                 widths[i%trailing_size] = max(widths[i%trailing_size], s_width)
                 strs.append(s)
 
@@ -119,7 +140,7 @@ def _frame_matrix(strs, widths, height):
     """Frames the values of a matrix with └┴┘├┼┤┌┬┐─│.
 
     `height` gives the vertical space each matrix element should occupy.
-    `widths` gives the horizontal each column in the matrix should occupy.
+    `widths` gives the horizontal space each column in the matrix should occupy.
     The matrix has as many columns as `widths` has elements and the number
         of rows is `len(strs)/len(widths)`.
     """
