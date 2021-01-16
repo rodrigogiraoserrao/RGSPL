@@ -10,11 +10,11 @@ class APLArray:
         self.data = data
 
     def major_cells(self):
-        """Returns an array with the major cells of self (as APLArray instances)."""
+        """Returns an APLArray with the major cells of self."""
         return self.n_cells(len(self.shape)-1)
 
     def n_cells(self, n):
-        """Returns an array with the n-cells of self (as APLArray instances).
+        """Returns an APLArray with the n-cells of self.
 
         An array of rank r has r-cells, (r-1)-cells, ..., 0-cells.
         An n-cell is a subarray with n trailing dimensions.
@@ -113,7 +113,9 @@ class APLArray:
                 string += m + " "
             return string[:-1]
 
-    __repr__ = __str__
+    def __repr__(self):
+        """Unambiguous representation of an APLArray instance."""
+        return f"APLArray({repr(self.shape)}, {repr(self.data)})"
 
     def __eq__(self, other):
         return (
