@@ -65,13 +65,3 @@ class TestArrayEvaluation(unittest.TestCase):
             run("(((1 2) 3) 4) 5"),
             APLArray([2], [APLArray([2], [APLArray([2], [APLArray([2], [S(1), S(2)]), S(3)]), S(4)]), S(5)])
         )
-
-if __name__ == "__main__":
-    unittest.main()
-
-"""
-# Test nesting of scalars
-test("⊂1", "1")
-test("⊂⊂1", "1")
-test("⊂⊂⊂¯3.5", "¯3.5")
-"""
