@@ -80,6 +80,8 @@ class Token:
     ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
     DYADIC_OPS = [JOT, OVER]
+    # Tokens that could be inside an array.
+    ARRAY_TOKENS = [INTEGER, FLOAT, COMPLEX, ID]
 
     # What You See Is What You Get characters that correspond to tokens.
     # The mapping from characteres to token types.
@@ -451,7 +453,7 @@ class Parser:
                 self.eat(Token.ID)
             else:
                 function = self.parse_function()
-                if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.COMPLEX, Token.ID]:
+                if self.token_at.type in [Token.RPARENS] + Token.ARRAY_TOKENS:
                     array = self.parse_vector()
                     statement = Dyad(function, array, statement)
                 else:
@@ -465,10 +467,9 @@ class Parser:
         self.debug(f"Parsing vector from {self.tokens[:self.pos+1]}")
 
         nodes = []
-        array_tokens = [Token.INTEGER, Token.FLOAT, Token.COMPLEX, Token.ID]
-        while self.token_at.type in array_tokens + [Token.RPARENS]:
+        while self.token_at.type in Token.ARRAY_TOKENS + [Token.RPARENS]:
             if self.token_at.type == Token.RPARENS:
-                if self.peek_beyond_parens() in array_tokens:
+                if self.peek_beyond_parens() in Token.ARRAY_TOKENS:
                     self.eat(Token.RPARENS)
                     nodes.append(self.parse_statement())
                     self.eat(Token.LPARENS)
