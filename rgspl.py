@@ -451,7 +451,7 @@ class Parser:
                 self.eat(Token.ID)
             else:
                 function = self.parse_function()
-                if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.ID]:
+                if self.token_at.type in [Token.RPARENS, Token.INTEGER, Token.FLOAT, Token.COMPLEX, Token.ID]:
                     array = self.parse_vector()
                     statement = Dyad(function, array, statement)
                 else:
