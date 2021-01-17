@@ -8,9 +8,7 @@ cf. https://www.jsoftware.com/papers/eem/complexfloor.htm for complex floor.
 import functools
 import math
 
-from arraymodel import APLArray
-
-toS = lambda v: APLArray([], v)
+from arraymodel import APLArray, S
 
 def pervade(func):
     """Decorator to define function pervasion into simple scalars."""
@@ -23,10 +21,10 @@ def pervade(func):
                 data = [
                     pervasive_func(omega=w, alpha=alpha) for w in omega.data
                 ]
-            elif isinstance(omega.data, APLArray):
-                data = pervasive_func(omega=omega.data, alpha=alpha)
+            elif isinstance(omega.data[0], APLArray):
+                data = [pervasive_func(omega=omega.data[0], alpha=alpha)]
             else:
-                data = func(omega=omega.data, alpha=alpha)
+                data = [func(omega=omega.data[0], alpha=alpha)]
         # Dyadic case from now on
         elif alpha.shape and omega.shape:
             if alpha.shape != omega.shape:
@@ -35,17 +33,17 @@ def pervade(func):
                 pervasive_func(omega=w, alpha=a) for w, a in zip(omega.data, alpha.data)
             ]
         elif alpha.shape:
-            w = omega.data if isinstance(omega.data, APLArray) else omega
+            w = omega if omega.is_simple_scalar() else omega.data[0]
             data = [pervasive_func(omega=w, alpha=a) for a in alpha.data]
         elif omega.shape:
-            a = alpha.data if isinstance(alpha.data, APLArray) else alpha
+            a = alpha if alpha.is_simple_scalar() else alpha.data[0]
             data = [pervasive_func(omega=w, alpha=a) for w in omega.data]
         # Both alpha and omega are simple scalars
-        elif not isinstance(alpha.data, APLArray) and not isinstance(omega.data, APLArray):
-            data = func(omega=omega.data, alpha=alpha.data)
+        elif alpha.is_simple_scalar() and omega.is_simple_scalar():
+            data = [func(omega=omega.data[0], alpha=alpha.data[0])]
         else:
-            a = alpha.data if isinstance(alpha.data, APLArray) else alpha
-            w = omega.data if isinstance(omega.data, APLArray) else omega
+            a = alpha if alpha.is_simple_scalar() else alpha.data[0]
+            w = omega if omega.is_simple_scalar() else omega.data[0]
             data = pervasive_func(omega=w, alpha=a)
 
         shape = getattr(alpha, "shape", None) or omega.shape
@@ -265,16 +263,12 @@ def _unique_mask(*, alpha=None, omega):
     1 0 1 0 1 0 0
     """
 
-    if not omega.shape:
-        return APLArray([], 1)
-
-    # find how many elements each major cell has and split the data in major cells
-    mcl = int(math.prod(omega.shape)/omega.shape[0])
-    major_cells = [omega.data[i*mcl:(i+1)*mcl] for i in range(omega.shape[0])]
-    return APLArray(
-        [omega.shape[0]],
-        [int(major_cell not in major_cells[:i]) for i, major_cell in enumerate(major_cells)]
-    )
+    majors = omega.major_cells()
+    data = [
+        APLArray([], [int(major_cell not in majors.data[:i])])
+        for i, major_cell in enumerate(majors.data)
+    ]
+    return APLArray([len(data)], data)
 
 def neq(*, alpha=None, omega):
     """Define monadic unique mask and dyadic not equal to.
@@ -305,10 +299,10 @@ def lshoe(*, alpha=None, omega):
     """
 
     if alpha is None:
-        if (not omega.shape) and (not isinstance(omega.data, APLArray)):
+        if omega.is_simple_scalar():
             return omega
         else:
-            return APLArray([], omega)
+            return APLArray([], [omega])
     else:
         raise NotImplementedError("Partitioned Enclose not implemented yet.")
 
@@ -329,21 +323,29 @@ def _without(*, alpha=None, omega):
     Dyadic case:
         3 1 4 1 5 ~ 1 5
     3 4
+        (3 2⍴⍳6) ~ 0 1
+    2 3
+    4 5
     """
 
-    if (r := len(alpha.shape)) > 1:
-        raise ValueError(f"Cannot use Without with array of rank {r}")
+    alpha_majors = alpha.major_cells()
+    needle_rank = len(alpha.shape) - 1
+    if needle_rank > len(omega.shape):
+        raise ValueError(f"Right argument to ~ needs rank at least {needle_rank}.")
+    # Get a list with the arrays that we wish to exclude from the left.
+    haystack = omega.n_cells(needle_rank).data
 
-    if omega.shape == []:
-        haystack = [omega.data] if isinstance(omega.data, APLArray) else [omega]
-    else:
-        haystack = omega.data
-    if alpha.shape == []:
-        needles = [alpha.data] if isinstance(alpha.data, APLArray) else [alpha]
-    else:
-        needles = alpha.data
-    newdata = [needle for needle in needles if needle not in haystack]
-    return APLArray([len(newdata)], newdata)
+    newdata = []
+    count = 0
+    for major in alpha_majors.data:
+        if major not in haystack:
+            if major.is_scalar():
+                newdata.append(major)
+            else:
+                newdata += major.data
+            count += 1
+    newshape = [count] + alpha.shape[1:]
+    return APLArray(newshape, newdata)
 
 def without(*, alpha=None, omega):
     """Define monadic not and dyadic without.
@@ -383,17 +385,17 @@ def _index_generator(*, alpha=None, omega):
     0 1 2 3
     """
 
-    d = omega.data
-    if isinstance(d, int):
-        shape = [d]
-    elif isinstance(d, list):
-        shape = [sub.data for sub in d]
-    else:
-        raise TypeError("Index generator expects an integer or vector of integers.")
 
     if (r := len(omega.shape)) > 1:
         raise ValueError(f"Index generator did not expect array of rank {r}.")
 
+    if omega.is_scalar() and isinstance(omega.data[0], int):
+        shape = [omega.data[0]]
+    else:
+        # If omega is not a scalar, then we want the integers that compose the vector.
+        shape = [elem.data[0] for elem in omega.data]
+
+    # Check the argument to index generator is only non-negative integers.
     if any(not isinstance(dim, int) for dim in shape):
         raise TypeError(f"Cannot generate indices with non-integers {shape}.")
     elif any(dim < 0 for dim in shape):
@@ -401,9 +403,9 @@ def _index_generator(*, alpha=None, omega):
 
     decoded = map(lambda n: _encode(shape, n), range(math.prod(shape)))
     if (l := len(shape)) == 1:
-        data = [toS(d[0]) for d in decoded]
+        data = [S(d[0]) for d in decoded]
     else:
-        data = [APLArray([l], list(map(toS, d))) for d in decoded]
+        data = [APLArray([l], list(map(S, d))) for d in decoded]
     return APLArray(shape, data)
 
 def iota(*, alpha=None, omega):
@@ -435,15 +437,14 @@ def rho(*, alpha=None, omega):
 
     if alpha is None:
         shape = [len(omega.shape)]
-        data = [APLArray([], i) for i in omega.shape]
+        data = [S(i) for i in omega.shape]
         return APLArray(shape, data)
     else:
         rank = len(alpha.shape)
         if rank > 1:
             raise ValueError(f"Left argument of reshape cannot have rank {rank}.")
         
-        shape_from = alpha.data if rank == 1 else [alpha]
-        shape = [d.data for d in shape_from]
+        shape = [d.data[0] for d in alpha.data]
         if not all(isinstance(i, int) for i in shape):
             raise TypeError("Left argument of reshape expects integers.")
         data_from = omega.data if len(omega.shape) > 0 else [omega]

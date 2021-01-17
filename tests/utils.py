@@ -14,7 +14,7 @@ def run(code):
 
 def S(scalar):
     """Create an APL scalar."""
-    return APLArray([], scalar)
+    return APLArray([], [scalar])
 
 def run_apl_code_decorator(assert_method):
     """Create a new assert method interpreting positional strings as APL code."""

@@ -26,6 +26,7 @@ This is the grammar supported:
 # pylint: disable=invalid-name
 
 import argparse
+import traceback
 from typing import List
 
 import doperators
@@ -576,7 +577,7 @@ class Interpreter(NodeVisitor):
 
     def visit_S(self, scalar):
         """Returns the value of a scalar."""
-        return APLArray([], scalar.value)
+        return APLArray([], [scalar.value])
 
     def visit_V(self, array):
         """Returns the value of an array."""
@@ -683,7 +684,7 @@ if __name__ == "__main__":
             try:
                 print(Interpreter(Parser(Tokenizer(inp), debug=True)).interpret())
             except Exception as error:
-                print(error)
+                traceback.print_exc()
 
     elif args.code:
         for expr in args.code:

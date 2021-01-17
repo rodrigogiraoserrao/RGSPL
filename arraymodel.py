@@ -5,6 +5,14 @@ Module to define the array model for APL.
 import math
 
 class APLArray:
+    """Class to hold APL arrays.
+
+    All arrays have a shape of type list and a list with the data.
+    The length of the data attribute is always the product of all
+    elements in the shape list, even for scalars (the product
+    of an empty list is 1).
+    """
+
     def __init__(self, shape, data):
         self.shape = shape
         self.data = data
@@ -43,16 +51,19 @@ class APLArray:
         ]
         return APLArray(result_shape, data)
 
-    def is_simple(self):
-        return (not self.shape) and (not isinstance(self.data, APLArray))
+    def is_scalar(self):
+        return not self.shape
+
+    def is_simple_scalar(self):
+        return (not self.shape) and (not isinstance(self.data[0], APLArray))
 
     def __str__(self):
         # Print simple scalars nicely.
-        if self.is_simple():
-            return _simple_scalar_str(self.data)
+        if self.is_simple_scalar():
+            return _simple_scalar_str(self)
 
         # Print simple arrays next.
-        if self.shape and all(d.is_simple() for d in self.data):
+        if self.shape and all(d.is_simple_scalar() for d in self.data):
             strs = list(map(str, self.data))
             rank = len(self.shape)
             if rank > 1:
@@ -79,7 +90,7 @@ class APLArray:
         # lay everything out, framing with nice characters like └┴┘├┼┤┌┬┐─│.
         rank = len(self.shape)
         if not rank:
-            return str(APLArray([1, 1], [self.data]))
+            return str(APLArray([1, 1], self.data))
         elif rank == 1:
             return str(APLArray([1]+self.shape, self.data))
         else:
@@ -109,7 +120,7 @@ class APLArray:
             newline_offsets = [math.prod(self.shape[-i-1:-2]) for i in range(rank-2)]
             string = ""
             for i, m in enumerate(matrices):
-                string += sum(i!=0 and 0 == i%l for l in newline_offsets)*"\n "
+                string += sum(i!=0 and 0 == i%l for l in newline_offsets)*"\n"
                 string += m + " "
             return string[:-1]
 
@@ -125,9 +136,12 @@ class APLArray:
         )
 
 # Helper method to create APLArray scalars.
-S = lambda v: APLArray([], v)
+S = lambda v: APLArray([], [v])
 
-def _simple_scalar_str(s):
+def _simple_scalar_str(scalar):
+    """String representation of a simple scalar."""
+
+    s = scalar.data[0]
     if isinstance(s, complex):
         return "J".join(map(_simple_scalar_str, [s.real, s.imag]))
     # Non-complex numeric type:
@@ -203,7 +217,7 @@ def _block_concat(left, right):
     )
 
 def _block_prepend(string, val):
-    """Prepends val to each line of string."""
+    """Prepend val to each line of string."""
     return "\n".join(
         map(lambda l: val+l, string.split("\n"))
     )
