@@ -402,10 +402,11 @@ def _index_generator(*, alpha=None, omega):
         raise ValueError("Cannot generate indices with negative integers.")
 
     decoded = map(lambda n: _encode(shape, n), range(math.prod(shape)))
-    if (l := len(shape)) == 1:
+    if omega.is_scalar():
         data = [S(d[0]) for d in decoded]
     else:
-        data = [APLArray([l], list(map(S, d))) for d in decoded]
+        r = len(shape)
+        data = [APLArray([r], list(map(S, d))) for d in decoded]
     return APLArray(shape, data)
 
 def iota(*, alpha=None, omega):
@@ -444,9 +445,14 @@ def rho(*, alpha=None, omega):
         if rank > 1:
             raise ValueError(f"Left argument of reshape cannot have rank {rank}.")
         
-        shape = [d.data[0] for d in alpha.data]
+        if alpha.is_scalar():
+            shape = [alpha.data[0]]
+        else:
+            shape = [d.data[0] for d in alpha.data]
+
         if not all(isinstance(i, int) for i in shape):
             raise TypeError("Left argument of reshape expects integers.")
+
         data_from = omega.data if len(omega.shape) > 0 else [omega]
         # Extend the data roughly if needed, then truncate if needed.
         data = data_from*(math.ceil(math.prod(shape)/len(data_from)))
