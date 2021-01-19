@@ -60,7 +60,7 @@ class APLArray:
     def __str__(self):
         # Print simple scalars nicely.
         if self.is_simple_scalar():
-            return _simple_scalar_str(self)
+            return _simple_scalar_str(self.data[0])
 
         # Print simple arrays next.
         if self.shape and all(d.is_simple_scalar() for d in self.data):
@@ -138,10 +138,9 @@ class APLArray:
 # Helper method to create APLArray scalars.
 S = lambda v: APLArray([], [v])
 
-def _simple_scalar_str(scalar):
+def _simple_scalar_str(s):
     """String representation of a simple scalar."""
 
-    s = scalar.data[0]
     if isinstance(s, complex):
         return "J".join(map(_simple_scalar_str, [s.real, s.imag]))
     # Non-complex numeric type:

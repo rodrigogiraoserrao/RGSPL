@@ -385,7 +385,6 @@ def _index_generator(*, alpha=None, omega):
     0 1 2 3
     """
 
-
     if (r := len(omega.shape)) > 1:
         raise ValueError(f"Index generator did not expect array of rank {r}.")
 
