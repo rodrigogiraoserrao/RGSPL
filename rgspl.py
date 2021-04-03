@@ -19,7 +19,8 @@ This is the grammar supported:
     mop            ::= "⍨" | "¨"
     f              ::= "+" | "-" | "×" | "÷" | "⌈" | "⌊" |
                      | "⊢" | "⊣" | "⍳" | "<" | "≤" | "=" |
-                     | "≥" | ">" | "≠" | "~" | "⊂" | "⍴" | LPARENS function RPARENS
+                     | "≥" | ">" | "≠" | "~" | "⊂" | "⍴" |
+                     | "∧" | "∨" | "⍲" | "⍱" |  LPARENS function RPARENS
     vector         ::= vector* ( scalar | ( LPARENS statement RPARENS ) )
     scalar         ::= INTEGER | FLOAT | COMPLEX | ID
 """
@@ -61,6 +62,10 @@ class Token:
     WITHOUT = "WITHOUT"
     LSHOE = "LSHOE"
     RHO = "RHO"
+    AND = "AND_"
+    OR = "OR_"
+    NAND = "NAND"
+    NOR = "NOR"
     # Operators
     COMMUTE = "COMMUTE"
     DIAERESIS = "DIAERESIS"
@@ -77,7 +82,8 @@ class Token:
     # Helpful lists of token types.
     FUNCTIONS = [
         PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA,
-        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ, WITHOUT, LSHOE, RHO,
+        LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ, WITHOUT, LSHOE, RHO, AND, OR,
+        NAND, NOR,
     ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
     DYADIC_OPS = [JOT, OVER]
@@ -105,6 +111,10 @@ class Token:
         "~": WITHOUT,
         "⊂": LSHOE,
         "⍴": RHO,
+        "∧": AND,
+        "∨": OR,
+        "⍲": NAND,
+        "⍱": NOR,
         "⍨": COMMUTE,
         "¨": DIAERESIS,
         "∘": JOT,
