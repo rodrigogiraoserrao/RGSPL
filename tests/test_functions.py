@@ -365,7 +365,7 @@ class TestIota(APLTestCase):
     def test_index_of(self):
         pass
 
-class Rho(APLTestCase):
+class TestRho(APLTestCase):
     """Test the primitive function ⍴."""
 
     def test_shape(self):
@@ -407,3 +407,65 @@ class Rho(APLTestCase):
             for shape in shapes:
                 with self.subTest(data=data, shape=shape):
                     self.assertEqual(f"⍴{shape}⍴{data}", shape)
+
+class TestAnd(APLTestCase):
+    """Test the primitive function ∧."""
+
+    def test_and(self):
+        self.assertEqual("0 ∧ 0", "0")
+        self.assertEqual("0 ∧ 1", "0")
+        self.assertEqual("1 ∧ 0", "0")
+        self.assertEqual("1 ∧ 1", "1")
+        self.assertEqual("0 ∧ 0 1", "0 0")
+        self.assertEqual("1 ∧ 0 1", "0 1")
+        self.assertEqual("0 1 ∧ 0", "0 0")
+        self.assertEqual("0 1 ∧ 1", "0 1")
+        self.assertEqual("0 0 1 1 ∧ 0 1 0 1", "0 0 0 1")
+
+    def test_lcm(self):
+        pass
+
+class TestOr(APLTestCase):
+    """Test the primitive function ∨."""
+
+    def test_or(self):
+        self.assertEqual("0 ∨ 0", "0")
+        self.assertEqual("0 ∨ 1", "1")
+        self.assertEqual("1 ∨ 0", "1")
+        self.assertEqual("1 ∨ 1", "1")
+        self.assertEqual("0 ∨ 0 1", "0 1")
+        self.assertEqual("1 ∨ 0 1", "1 1")
+        self.assertEqual("0 1 ∨ 0", "0 1")
+        self.assertEqual("0 1 ∨ 1", "1 1")
+        self.assertEqual("0 0 1 1 ∨ 0 1 0 1", "0 1 1 1")
+
+    def test_gcd(self):
+        pass
+
+class TestNotAnd(APLTestCase):
+    """Test the primitive function ⍲."""
+
+    def test_not_and(self):
+        self.assertEqual("0 ⍲ 0", "1")
+        self.assertEqual("0 ⍲ 1", "1")
+        self.assertEqual("1 ⍲ 0", "1")
+        self.assertEqual("1 ⍲ 1", "0")
+        self.assertEqual("0 ⍲ 0 1", "1 1")
+        self.assertEqual("1 ⍲ 0 1", "1 0")
+        self.assertEqual("0 1 ⍲ 0", "1 1")
+        self.assertEqual("0 1 ⍲ 1", "1 0")
+        self.assertEqual("0 0 1 1 ⍲ 0 1 0 1", "1 1 1 0")
+
+class TestNotOr(APLTestCase):
+    """Test the primitive function ⍱."""
+
+    def test_not_or(self):
+        self.assertEqual("0 ⍱ 0", "1")
+        self.assertEqual("0 ⍱ 1", "0")
+        self.assertEqual("1 ⍱ 0", "0")
+        self.assertEqual("1 ⍱ 1", "0")
+        self.assertEqual("0 ⍱ 0 1", "1 0")
+        self.assertEqual("1 ⍱ 0 1", "0 0")
+        self.assertEqual("0 1 ⍱ 0", "1 0")
+        self.assertEqual("0 1 ⍱ 1", "0 0")
+        self.assertEqual("0 0 1 1 ⍱ 0 1 0 1", "1 0 0 0")
