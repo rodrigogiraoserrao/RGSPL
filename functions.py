@@ -51,6 +51,46 @@ def pervade(func):
 
     return pervasive_func
 
+def dyadic(op):
+    """Decorator that ensures that the corresponding APL primitive is called dyadically."""
+
+    def inner(func):
+        @functools.wraps(func)
+        def wrapped(*, alpha=None, omega):
+
+            if alpha is None:
+                raise SyntaxError(f"{op} is a dyadic function.")
+            return func(alpha=alpha, omega=omega)
+
+        return wrapped
+    return inner
+
+TYPES = {
+    "boolean": lambda x: x in [0, 1],
+    int: lambda x: isinstance(x, int),
+}
+
+def arg_types(op, alpha_type=None, omega_type=None):
+    """Decorator that ensures a scalar APL function receives args with given types."""
+
+    def inner(func):
+        @functools.wraps(func)
+        def wrapped(*, alpha=None, omega):
+            if (check := TYPES.get(alpha_type)) is not None:
+                if not check(alpha):
+                    raise TypeError(f"{op} expected a left argument of type {alpha_type}.")
+            if (check := TYPES.get(omega_type)) is not None:
+                if not check(omega):
+                    raise TypeError(f"{op} expected a right argument of type {omega_type}.")
+            return func(alpha=alpha, omega=omega)
+
+        return wrapped
+    return inner
+
+def boolean_function(op):
+    """Decorator that ensures a Boolean function gets passed Boolean arguments."""
+    return arg_types(op, "boolean", "boolean")
+
 @pervade
 def plus(*, alpha=None, omega):
     """Define monadic complex conjugate and binary addition.
@@ -162,6 +202,58 @@ def floor(*, alpha=None, omega):
         return math.floor(omega)
     else:
         return min(alpha, omega)
+
+@pervade
+@boolean_function("∧")
+@dyadic("∧")
+def and_(*, alpha=None, omega):
+    """Define dyadic Boolean and.
+
+    Dyadic case:
+        0 0 1 1 ∧ 0 1 0 1
+    0 0 0 1
+    """
+
+    return alpha and omega
+
+@pervade
+@boolean_function("⍲")
+@dyadic("⍲")
+def nand(*, alpha=None, omega):
+    """Define dyadic Boolean nand function.
+
+    Dyadic case:
+        0 0 1 1 ⍲ 0 1 0 1
+    1 1 1 0
+    """
+
+    return 1 - (alpha and omega)
+
+@pervade
+@boolean_function("∨")
+@dyadic("∨")
+def or_(*, alpha=None, omega):
+    """Define dyadic Boolean or function.
+
+    Dyadic case:
+        0 0 1 1 ∨ 0 1 0 1
+    0 1 1 1
+    """
+
+    return alpha or omega
+
+@pervade
+@boolean_function("⍱")
+@dyadic("⍱")
+def nor(*, alpha=None, omega):
+    """Define dyadic Boolean nor function.
+
+    Dyadic case:
+        0 0 1 1 ⍱ 0 1 0 1
+    1 0 0 0
+    """
+
+    return 1 - (alpha or omega)
 
 def right_tack(*, alpha=None, omega):
     """Define monadic same and dyadic right.
