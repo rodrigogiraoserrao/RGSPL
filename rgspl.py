@@ -15,7 +15,7 @@ This is the grammar supported:
     statement_list ::= (statement "⋄")* statement
     statement      ::= ( ID "←" | vector function | function )* vector
     function       ::= function mop | function dop f | f
-    dop            ::= "∘" | "⍥"
+    dop            ::= "∘" | "⍤" | "⍥"
     mop            ::= "⍨" | "¨"
     f              ::= "+" | "-" | "×" | "÷" | "⌈" | "⌊" |
                      | "⊢" | "⊣" | "⍳" | "<" | "≤" | "=" |
@@ -70,6 +70,7 @@ class Token:
     COMMUTE = "COMMUTE"
     DIAERESIS = "DIAERESIS"
     JOT = "JOT"
+    ATOP = "ATOP"
     OVER = "OVER"
     # Misc
     DIAMOND = "DIAMOND"
@@ -86,7 +87,7 @@ class Token:
         NAND, NOR,
     ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
-    DYADIC_OPS = [JOT, OVER]
+    DYADIC_OPS = [JOT, ATOP, OVER]
     # Tokens that could be inside an array.
     ARRAY_TOKENS = [INTEGER, FLOAT, COMPLEX, ID]
 
@@ -118,6 +119,7 @@ class Token:
         "⍨": COMMUTE,
         "¨": DIAERESIS,
         "∘": JOT,
+        "⍤": ATOP,
         "⍥": OVER,
         "←": ASSIGNMENT,
         "(": LPARENS,

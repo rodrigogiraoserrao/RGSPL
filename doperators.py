@@ -17,6 +17,21 @@ def jot(*, aalpha, oomega):
         return aalpha(alpha=alpha, omega=oomega(omega=omega))
     return derived
 
+def atop(*, aalpha, oomega):
+    """Define the dyadic atop ⍤ operator.
+
+    Monadic case:
+        f⍤g ⍵
+    f g ⍵
+    Dyadic case:
+        ⍺ f⍤g ⍵
+    f ⍺ g ⍵
+    """
+
+    def derived(*, alpha=None, omega):
+        return aalpha(alpha=None, omega=oomega(alpha=alpha, omega=omega))
+    return derived
+
 def over(*, aalpha, oomega):
     """Define the dyadic over ⍥ operator.
 
