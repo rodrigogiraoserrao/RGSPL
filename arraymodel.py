@@ -57,6 +57,12 @@ class APLArray:
     def is_simple_scalar(self):
         return (not self.shape) and (not isinstance(self.data[0], APLArray))
 
+    def at_least_vector(self):
+        if self.is_simple_scalar():
+            return APLArray([1], [self])
+        else:
+            return self
+
     def __str__(self):
         # Print simple scalars nicely.
         if self.is_simple_scalar():

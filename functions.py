@@ -455,20 +455,6 @@ def without(*, alpha=None, omega):
     else:
         return _without(alpha=alpha, omega=omega)
 
-def _encode(radices, n):
-    """Encode n into the radices given.
-
-    Dyadic case (10000 seconds is 2h 46min 40s):
-        24 60 60 ⊤ 10000
-    2 46 40
-    """
-
-    bs = []
-    for m in radices[::-1]:
-        n, b = divmod(n, m)
-        bs.append(b)
-    return bs[::-1]
-
 def _index_generator(*, alpha=None, omega):
     """Define monadic Index Generator.
 
@@ -551,7 +537,11 @@ def rho(*, alpha=None, omega):
         return APLArray(shape, data)
 
 def _decode(alpha, omega):
-    """Helper function that decodes one APLArray w.r.t. to another."""
+    """Helper function that decodes one APLArray w.r.t. to another.
+
+    Notice that this goes against the _encode helper function, that
+    _does not_ deal with APLArray objects.
+    """
 
     acc = 0
     acc_prod = 1
@@ -595,8 +585,57 @@ def decode(*, alpha=None, omega):
         omega.shape[1:],
         [APLArray([omega.shape[0]], omega.data[i::dist]) for i in range(dist)]
     )
-    # Traverse alpha_cells and omega_first_axis_enclosure in ravel order and decode
-    # as I go along.
-
+    # Pair each 1-cell of alpha with each element in the first axis enclosure of omega.
     data = [_decode(a, o) for a in alpha.n_cells(1).data for o in omega_first_axis_enclosure.data]
     return APLArray(alpha.shape[:-1] + omega.shape[1:], data)
+
+def _encode(radices, n):
+    """Helper function to the encode ⊤ primitive.
+
+    Takes a list of radices and a simple scalar n.
+    (Notice that `radices` and `n` are _not_ APLArray objects)
+
+    E.g. (10000 seconds is 2h 46min 40s):
+        24 60 60 ⊤ 10000
+    2 46 40
+    """
+
+    n = n % (math.prod(radices) if 0 not in radices else n + 1)
+    bs = []
+    for m in radices[::-1]:
+        n, b = divmod(n, m) if m != 0 else (0, n)
+        bs.append(b)
+    return bs[::-1]
+
+@dyadic("⊤")
+def encode(*, alpha=None, omega):
+    """Define dyadic encode.
+
+    Dyadic case:
+        2 3 4 ⊤ 23 24
+    1 0
+    2 0
+    3 0
+
+    Notice that alpha has the radices along its first dimension.
+    Therefore, the first axis enclosure of alpha gives vectors with the radices.
+    The final result has the encodings also along the first axis,
+    so the first axis enclosure of the result is easy to relate to the first axis
+    enclosure of alpha and the original omega.
+    """
+
+    if alpha.is_simple_scalar():
+        raise NotImplementedError("For simple scalar ⍺ we depend on |, which hasn't been implemented.")
+        # return residue(alpha=alpha, omega=omega)
+
+    result_shape = alpha.shape + omega.shape
+    result_data = [0]*math.prod(result_shape)
+    # Radices come from alpha.shape[i::dist] (~ the first axis enclosure of alpha).
+    dist = math.prod(alpha.shape[1:])
+    # Resulting vectors go to result_data[j::rdist] (~ the first axis enclosure of the result).
+    rdist = math.prod(result_shape[1:])
+    for i in range(dist):
+        radices = [s.data[0] for s in alpha.data[i::dist]]
+        for j, s in enumerate(omega.at_least_vector().data):
+            result_data[i*math.prod(omega.shape)+j::rdist] = map(S, _encode(radices, s.data[0]))
+    return APLArray(result_shape, result_data)
