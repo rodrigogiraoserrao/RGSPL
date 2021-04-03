@@ -563,14 +563,13 @@ def decode(*, alpha=None, omega):
     10000
     """
 
-    # If omega is a simple scalar, return it.
-    if omega.is_simple_scalar():
-        return omega
+    # Compute the final shape now, then promote omega for ease of computation.
+    final_shape = alpha.shape[:-1] + omega.shape[1:]
+    omega = omega.at_least_vector()
 
     # Ensure alpha has the correct shape:
     if alpha.is_simple_scalar() or alpha.shape == [1]:
-        target_shape = APLArray([1], [S(omega.shape[0])])
-        alpha = rho(alpha=target_shape, omega=alpha)
+        alpha = rho(alpha=S(omega.shape[0]), omega=alpha)
 
     # Ensure omega has the correct leading dimension:
     if omega.shape[0] != alpha.shape[-1]:
@@ -587,7 +586,8 @@ def decode(*, alpha=None, omega):
     )
     # Pair each 1-cell of alpha with each element in the first axis enclosure of omega.
     data = [_decode(a, o) for a in alpha.n_cells(1).data for o in omega_first_axis_enclosure.data]
-    return APLArray(alpha.shape[:-1] + omega.shape[1:], data)
+    # Check if we should return a container array or just a single simple scalar.
+    return APLArray(final_shape, data) if final_shape else data[0]
 
 def _encode(radices, n):
     """Helper function to the encode ⊤ primitive.
@@ -624,11 +624,9 @@ def encode(*, alpha=None, omega):
     enclosure of alpha and the original omega.
     """
 
-    if alpha.is_simple_scalar():
-        raise NotImplementedError("For simple scalar ⍺ we depend on |, which hasn't been implemented.")
-        # return residue(alpha=alpha, omega=omega)
-
+    # Compute the resulting shape now and promote alpha for ease of calculations.
     result_shape = alpha.shape + omega.shape
+    alpha = alpha.at_least_vector()
     result_data = [0]*math.prod(result_shape)
     # Radices come from alpha.shape[i::dist] (~ the first axis enclosure of alpha).
     dist = math.prod(alpha.shape[1:])
@@ -638,4 +636,5 @@ def encode(*, alpha=None, omega):
         radices = [s.data[0] for s in alpha.data[i::dist]]
         for j, s in enumerate(omega.at_least_vector().data):
             result_data[i*math.prod(omega.shape)+j::rdist] = map(S, _encode(radices, s.data[0]))
-    return APLArray(result_shape, result_data)
+
+    return APLArray(result_shape, result_data) if result_shape else result_data[0]
