@@ -549,3 +549,54 @@ def rho(*, alpha=None, omega):
         data = data_from*(math.ceil(math.prod(shape)/len(data_from)))
         data = data[:math.prod(shape)]
         return APLArray(shape, data)
+
+def _decode(alpha, omega):
+    """Helper function that decodes one APLArray w.r.t. to another."""
+
+    acc = 0
+    acc_prod = 1
+    alphas = [a.data[0] for a in alpha.data]
+    omegas = [o.data[0] for o in omega.data]
+    for a, o in zip(alphas[::-1], omegas[::-1]):
+        acc += acc_prod * o
+        acc_prod *= a
+    return S(acc)
+
+@dyadic("⊥")
+def decode(*, alpha=None, omega):
+    """Define dyadic decode.
+
+    Dyadic case:
+        2 ⊥ 1 1 0 1
+    13
+        24 60 60 ⊥ 2 46 40
+    10000
+    """
+
+    # If omega is a simple scalar, return it.
+    if omega.is_simple_scalar():
+        return omega
+
+    # Ensure alpha has the correct shape:
+    if alpha.is_simple_scalar() or alpha.shape == [1]:
+        target_shape = APLArray([1], [S(omega.shape[0])])
+        alpha = rho(alpha=target_shape, omega=alpha)
+
+    # Ensure omega has the correct leading dimension:
+    if omega.shape[0] != alpha.shape[-1]:
+        if omega.shape[0] != 1:
+            raise IndexError("Trailing dimension of ⍺ should match leading dimension of ⍵ in ⍺⊥⍵.")
+        target_shape_values = [S(v) for v in [alpha.shape[-1]]+omega.shape[1:]]
+        target_shape = APLArray([len(omega.shape)], target_shape_values)
+        omega = rho(alpha=target_shape, omega=omega)
+
+    dist = math.prod(omega.shape[1:])
+    omega_first_axis_enclosure = APLArray(
+        omega.shape[1:],
+        [APLArray([omega.shape[0]], omega.data[i::dist]) for i in range(dist)]
+    )
+    # Traverse alpha_cells and omega_first_axis_enclosure in ravel order and decode
+    # as I go along.
+
+    data = [_decode(a, o) for a in alpha.n_cells(1).data for o in omega_first_axis_enclosure.data]
+    return APLArray(alpha.shape[:-1] + omega.shape[1:], data)

@@ -20,7 +20,7 @@ This is the grammar supported:
     f              ::= "+" | "-" | "×" | "÷" | "⌈" | "⌊" |
                      | "⊢" | "⊣" | "⍳" | "<" | "≤" | "=" |
                      | "≥" | ">" | "≠" | "~" | "⊂" | "⍴" |
-                     | "∧" | "∨" | "⍲" | "⍱" |  LPARENS function RPARENS
+                     | "∧" | "∨" | "⍲" | "⍱" | "⊥" | LPARENS function RPARENS
     vector         ::= vector* ( scalar | ( LPARENS statement RPARENS ) )
     scalar         ::= INTEGER | FLOAT | COMPLEX | ID
 """
@@ -66,6 +66,7 @@ class Token:
     OR = "OR_"
     NAND = "NAND"
     NOR = "NOR"
+    DECODE = "DECODE"
     # Operators
     COMMUTE = "COMMUTE"
     DIAERESIS = "DIAERESIS"
@@ -84,7 +85,7 @@ class Token:
     FUNCTIONS = [
         PLUS, MINUS, TIMES, DIVIDE, FLOOR, CEILING, RIGHT_TACK, LEFT_TACK, IOTA,
         LESS, LESSEQ, EQ, GREATEREQ, GREATER, NEQ, WITHOUT, LSHOE, RHO, AND, OR,
-        NAND, NOR,
+        NAND, NOR, DECODE,
     ]
     MONADIC_OPS = [COMMUTE, DIAERESIS]
     DYADIC_OPS = [JOT, ATOP, OVER]
@@ -116,6 +117,7 @@ class Token:
         "∨": OR,
         "⍲": NAND,
         "⍱": NOR,
+        "⊥": DECODE,
         "⍨": COMMUTE,
         "¨": DIAERESIS,
         "∘": JOT,
