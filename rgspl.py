@@ -663,6 +663,7 @@ class Interpreter(NodeVisitor):
 if __name__ == "__main__":
 
     arg_parser = argparse.ArgumentParser(description="Parse and interpret an APL program.")
+    arg_parser.add_argument("-d", "--debug", action="store_true")
     main_group = arg_parser.add_mutually_exclusive_group()
     main_group.add_argument(
         "--repl",
@@ -692,14 +693,14 @@ if __name__ == "__main__":
         print("Please notice that, from one input line to the next, variables aren't stored (yet).")
         while inp := input(" >> "):
             try:
-                print(Interpreter(Parser(Tokenizer(inp), debug=True)).interpret())
+                print(Interpreter(Parser(Tokenizer(inp), debug=args.debug)).interpret())
             except Exception as error:
                 traceback.print_exc()
 
     elif args.code:
         for expr in args.code:
             print(f"{expr} :")
-            print(Interpreter(Parser(Tokenizer(expr), debug=True)).interpret())
+            print(Interpreter(Parser(Tokenizer(expr), debug=args.debug)).interpret())
 
     elif args.file:
         print("Not implemented yet...")
